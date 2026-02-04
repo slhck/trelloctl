@@ -1,0 +1,31 @@
+[project]
+name = "trelloctl"
+version = "0.1.0"
+description = "A command-line interface for Trello"
+readme = "README.md"
+authors = [
+    { name = "Werner Robitza", email = "werner.robitza@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.3.1",
+    "httpx>=0.28.1",
+    "keyring>=25.7.0",
+    "rich>=14.3.2",
+]
+
+[project.scripts]
+trelloctl = "trelloctl.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.26,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pre-commit>=4.2.0",
+    "pytest>=9.0.2",
+    "pytest-mock>=3.14.0",
+    "ruff>=0.15.0",
+]

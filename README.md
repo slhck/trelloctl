@@ -1,26 +1,27 @@
 # trelloctl
 
+[![PyPI version](https://img.shields.io/pypi/v/trelloctl.svg)](https://pypi.org/project/trelloctl)
+[![Python package](https://github.com/slhck/trelloctl/actions/workflows/python-package.yml/badge.svg)](https://github.com/slhck/trelloctl/actions/workflows/python-package.yml)
+
 A command-line interface for Trello, written in Python.
 
 ## Requirements
 
 - Python 3.11+
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
 
 ## Installation
 
-Clone the repository and install with uv:
+Simply run it via [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```bash
-git clone https://github.com/slhck/trelloctl.git
-cd trelloctl
-uv sync
+uvx trelloctl
 ```
 
-Or install with pip:
+Or install via [pipx](https://pipx.pypa.io/latest/installation/).
+Or manually via pip:
 
 ```bash
-pip install .
+pip install trelloctl
 ```
 
 ## Usage

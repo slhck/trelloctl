@@ -1,3 +1,12 @@
+## [0.2.1] - 2026-02-05
+
+### 🐛 Bug Fixes
+
+- Remove brittle version-pinned CLI test
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.2.1
 ## [0.2.0] - 2026-02-05
 
 ### 🚀 Features

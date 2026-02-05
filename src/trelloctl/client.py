@@ -173,6 +173,41 @@ class TrelloClient:
         """Get comments on a card."""
         return self.get(f"/cards/{card_id}/actions", params={"filter": "commentCard"})
 
+    # Checklist methods
+    def get_card_checklists(self, card_id: str) -> list[dict]:
+        """Get all checklists on a card."""
+        return self.get(f"/cards/{card_id}/checklists")
+
+    def create_checklist(self, card_id: str, name: str) -> dict:
+        """Create a checklist on a card."""
+        return self.post(f"/cards/{card_id}/checklists", params={"name": name})
+
+    def delete_checklist(self, checklist_id: str) -> None:
+        """Delete a checklist."""
+        self.delete(f"/checklists/{checklist_id}")
+
+    def add_checklist_item(
+        self, checklist_id: str, name: str, checked: bool = False
+    ) -> dict:
+        """Add an item to a checklist."""
+        return self.post(
+            f"/checklists/{checklist_id}/checkItems",
+            params={"name": name, "checked": str(checked).lower()},
+        )
+
+    def update_checklist_item(
+        self, card_id: str, check_item_id: str, state: str
+    ) -> dict:
+        """Update a checklist item's state ('complete' or 'incomplete')."""
+        return self.put(
+            f"/cards/{card_id}/checkItem/{check_item_id}",
+            params={"state": state},
+        )
+
+    def delete_checklist_item(self, checklist_id: str, check_item_id: str) -> None:
+        """Delete a checklist item."""
+        self.delete(f"/checklists/{checklist_id}/checkItems/{check_item_id}")
+
     # Member methods
     def get_me(self) -> dict:
         """Get the authenticated user."""

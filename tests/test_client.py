@@ -186,6 +186,113 @@ class TestTrelloClient:
 
         assert comment["data"]["text"] == "Test comment"
 
+    def test_get_card_checklists(self, mocker: Any) -> None:
+        """Test getting checklists for a card."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "id": "checklist12345678901234",
+                "name": "Tasks",
+                "checkItems": [
+                    {"id": "item1", "name": "Item 1", "state": "incomplete"},
+                ],
+            }
+        ]
+
+        mocker.patch.object(client._client, "request", return_value=mock_response)
+
+        checklists = client.get_card_checklists("card12345678901234567890")
+
+        assert len(checklists) == 1
+        assert checklists[0]["name"] == "Tasks"
+
+    def test_create_checklist(self, mocker: Any) -> None:
+        """Test creating a checklist on a card."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "checklist12345678901234",
+            "name": "My Checklist",
+        }
+
+        mocker.patch.object(client._client, "request", return_value=mock_response)
+
+        cl = client.create_checklist("card12345678901234567890", "My Checklist")
+
+        assert cl["name"] == "My Checklist"
+
+    def test_delete_checklist(self, mocker: Any) -> None:
+        """Test deleting a checklist."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.delete_checklist("checklist12345678901234")
+
+        mock_request.assert_called_once()
+
+    def test_add_checklist_item(self, mocker: Any) -> None:
+        """Test adding an item to a checklist."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "name": "New Item",
+            "state": "incomplete",
+        }
+
+        mocker.patch.object(client._client, "request", return_value=mock_response)
+
+        item = client.add_checklist_item("checklist12345678901234", "New Item")
+
+        assert item["name"] == "New Item"
+
+    def test_update_checklist_item(self, mocker: Any) -> None:
+        """Test updating a checklist item state."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "state": "complete",
+        }
+
+        mocker.patch.object(client._client, "request", return_value=mock_response)
+
+        item = client.update_checklist_item(
+            "card12345678901234567890", "item123", "complete"
+        )
+
+        assert item["state"] == "complete"
+
+    def test_delete_checklist_item(self, mocker: Any) -> None:
+        """Test deleting a checklist item."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.delete_checklist_item("checklist12345678901234", "item123")
+
+        mock_request.assert_called_once()
+
     def test_request_raises_on_error(self, mocker: Any) -> None:
         """Test that HTTP errors are raised."""
         client = TrelloClient(api_key="test_key", token="test_token")

@@ -148,6 +148,19 @@ Card management commands.
 | `card comment <card_id> <text>` | Add a comment to a card |
 | `card comments <card_id>` | List comments on a card |
 
+### `trelloctl checklist`
+
+Checklist management commands.
+
+| Command | Description |
+|---------|-------------|
+| `checklist list <card_id>` | List all checklists and items on a card |
+| `checklist create <card_id> --name <name>` | Create a checklist on a card |
+| `checklist delete <checklist_id>` | Delete a checklist |
+| `checklist add-item <checklist_id> --name <name> [--checked]` | Add an item to a checklist |
+| `checklist check <card_id> <item_id> [--uncheck]` | Mark a checklist item as complete or incomplete |
+| `checklist delete-item <checklist_id> <item_id>` | Delete a checklist item |
+
 ### Multiple Profiles
 
 You can use multiple Trello accounts by specifying a profile:

@@ -293,6 +293,33 @@ class TestTrelloClient:
 
         mock_request.assert_called_once()
 
+    def test_update_card_sends_json_body(self, mocker: Any) -> None:
+        """Test that update_card sends data in the JSON body, not query params."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "card12345678901234567890",
+            "name": "Updated Card",
+            "desc": "A" * 5000,
+        }
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        long_desc = "A" * 5000
+        client.update_card(
+            "card12345678901234567890", name="Updated Card", desc=long_desc
+        )
+
+        mock_request.assert_called_once()
+        _, kwargs = mock_request.call_args
+        assert kwargs["json"] == {"name": "Updated Card", "desc": long_desc}
+        assert "name" not in kwargs["params"]
+        assert "desc" not in kwargs["params"]
+
     def test_request_raises_on_error(self, mocker: Any) -> None:
         """Test that HTTP errors are raised."""
         client = TrelloClient(api_key="test_key", token="test_token")

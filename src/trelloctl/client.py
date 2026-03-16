@@ -143,7 +143,7 @@ class TrelloClient:
 
     def update_card(self, card_id: str, **kwargs: Any) -> dict:
         """Update a card."""
-        return self.put(f"/cards/{card_id}", params=kwargs)
+        return self.put(f"/cards/{card_id}", json=kwargs)
 
     def move_card(self, card_id: str, list_id: str, pos: str = "bottom") -> dict:
         """Move a card to a different list."""

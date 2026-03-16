@@ -1,3 +1,16 @@
+## [0.2.2] - 2026-03-16
+
+### 🐛 Bug Fixes
+
+- *(client)* Send card updates in request body instead of query params
+
+### 📚 Documentation
+
+- Add checklist commands to README for v0.2.0
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.2.2
 ## [0.2.1] - 2026-02-05
 
 ### 🐛 Bug Fixes

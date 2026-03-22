@@ -76,6 +76,7 @@ def status(ctx: Context) -> None:
 def logout(ctx: Context) -> None:
     """Remove stored credentials."""
     import keyring
+    import keyring.errors
     from trelloctl.config import SERVICE_NAME
 
     try:

@@ -25,7 +25,7 @@ uv run ruff check src tests
 uv run ruff format src tests
 
 # Type checking
-uv run mypy src
+uv run ty check
 ```
 
 ## Architecture

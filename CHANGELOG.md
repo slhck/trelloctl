@@ -1,3 +1,12 @@
+## [0.3.0] - 2026-06-26
+
+### 🚀 Features
+
+- Add per-checklist item owners and due dates
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.3.0
 ## [0.2.3] - 2026-03-30
 
 ### ⚙️ Miscellaneous Tasks

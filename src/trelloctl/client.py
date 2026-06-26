@@ -178,6 +178,10 @@ class TrelloClient:
         """Get all checklists on a card."""
         return self.get(f"/cards/{card_id}/checklists")
 
+    def get_checklist(self, checklist_id: str) -> dict:
+        """Get a checklist by ID."""
+        return self.get(f"/checklists/{checklist_id}")
+
     def create_checklist(self, card_id: str, name: str) -> dict:
         """Create a checklist on a card."""
         return self.post(f"/cards/{card_id}/checklists", params={"name": name})
@@ -187,13 +191,30 @@ class TrelloClient:
         self.delete(f"/checklists/{checklist_id}")
 
     def add_checklist_item(
-        self, checklist_id: str, name: str, checked: bool = False
+        self,
+        checklist_id: str,
+        name: str,
+        checked: bool = False,
+        id_member: str | None = None,
+        due: str | None = None,
+        due_reminder: int | None = None,
     ) -> dict:
-        """Add an item to a checklist."""
-        return self.post(
-            f"/checklists/{checklist_id}/checkItems",
-            params={"name": name, "checked": str(checked).lower()},
-        )
+        """Add an item to a checklist.
+
+        If id_member or due is given, the item is assigned to that member or
+        given that due date. due_reminder is the number of minutes before the
+        due date to send a reminder. Per-item members and due dates require a
+        paid Trello plan (advanced checklists); on free plans the API accepts
+        the values but does not store them.
+        """
+        params: dict[str, str] = {"name": name, "checked": str(checked).lower()}
+        if id_member:
+            params["idMember"] = id_member
+        if due:
+            params["due"] = due
+        if due_reminder is not None:
+            params["dueReminder"] = str(due_reminder)
+        return self.post(f"/checklists/{checklist_id}/checkItems", params=params)
 
     def update_checklist_item(
         self, card_id: str, check_item_id: str, state: str
@@ -202,6 +223,42 @@ class TrelloClient:
         return self.put(
             f"/cards/{card_id}/checkItem/{check_item_id}",
             params={"state": state},
+        )
+
+    def set_checklist_item_member(
+        self, card_id: str, check_item_id: str, id_member: str
+    ) -> dict:
+        """Assign a member to a checklist item.
+
+        Pass an empty string for id_member to remove the assigned member. A
+        checklist item holds at most one member. Requires a paid Trello plan
+        (advanced checklists); on free plans the value is silently dropped.
+        """
+        return self.put(
+            f"/cards/{card_id}/checkItem/{check_item_id}",
+            params={"idMember": id_member},
+        )
+
+    def set_checklist_item_due(
+        self,
+        card_id: str,
+        check_item_id: str,
+        due: str,
+        due_reminder: int | None = None,
+    ) -> dict:
+        """Set a checklist item's due date.
+
+        Pass an empty string for due to remove the due date. due_reminder is
+        the number of minutes before the due date to send a reminder (-1 to
+        clear it). Requires a paid Trello plan (advanced checklists); on free
+        plans the value is silently dropped.
+        """
+        params: dict[str, str] = {"due": due}
+        if due_reminder is not None:
+            params["dueReminder"] = str(due_reminder)
+        return self.put(
+            f"/cards/{card_id}/checkItem/{check_item_id}",
+            params=params,
         )
 
     def delete_checklist_item(self, checklist_id: str, check_item_id: str) -> None:

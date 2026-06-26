@@ -145,6 +145,89 @@ class TestResolver:
 
         assert "Card not found" in str(exc_info.value)
 
+    def test_resolve_member_by_id(self, mock_resolver: Resolver) -> None:
+        """Test resolving a member by its full ID."""
+        member_id = mock_resolver.resolve_member(
+            "Development", "60d5ec49f1a4a23456789abc"
+        )
+        assert member_id == "60d5ec49f1a4a23456789abc"
+
+    def test_resolve_member_by_username(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test resolving a member by username (case-insensitive)."""
+        mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        member_id = mock_resolver.resolve_member("Development", "JohnDoe")
+        assert member_id == "member1"
+
+    def test_resolve_member_by_full_name(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test resolving a member by full name."""
+        mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        member_id = mock_resolver.resolve_member("Development", "Jane Doe")
+        assert member_id == "member2"
+
+    def test_resolve_member_by_partial_name(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test resolving a member by partial name match."""
+        mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        member_id = mock_resolver.resolve_member("Development", "Jane")
+        assert member_id == "member2"
+
+    def test_resolve_member_ambiguous(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test that ambiguous partial matches raise an error."""
+        mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        # "doe" matches both johndoe and janedoe
+        with pytest.raises(ValueError) as exc_info:
+            mock_resolver.resolve_member("Development", "doe")
+
+        assert "Multiple members match" in str(exc_info.value)
+
+    def test_resolve_member_not_found(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test that a non-existent member raises an error."""
+        mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            mock_resolver.resolve_member("Development", "NonExistent")
+
+        assert "Member not found" in str(exc_info.value)
+
+    def test_members_cache(
+        self, mock_resolver: Resolver, mock_members: list[dict], mocker: Any
+    ) -> None:
+        """Test that members are cached per board."""
+        mock_get_board_members = mocker.patch.object(
+            mock_resolver.client, "get_board_members", return_value=mock_members
+        )
+
+        # First call should fetch
+        mock_resolver.resolve_member("507f1f77bcf86cd799439011", "johndoe")
+        assert mock_get_board_members.call_count == 1
+
+        # Second call for same board should use cache
+        mock_resolver.resolve_member("507f1f77bcf86cd799439011", "janedoe")
+        assert mock_get_board_members.call_count == 1
+
     def test_boards_cache(
         self, mock_resolver: Resolver, mock_boards: list[dict], mocker: Any
     ) -> None:

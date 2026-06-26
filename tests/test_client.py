@@ -259,6 +259,173 @@ class TestTrelloClient:
 
         assert item["name"] == "New Item"
 
+    def test_add_checklist_item_with_member(self, mocker: Any) -> None:
+        """Test that a member id is sent when adding a checklist item."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "name": "New Item",
+            "idMember": "member1",
+        }
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        item = client.add_checklist_item(
+            "checklist12345678901234", "New Item", id_member="member1"
+        )
+
+        assert item["idMember"] == "member1"
+        _, kwargs = mock_request.call_args
+        assert kwargs["params"]["idMember"] == "member1"
+
+    def test_add_checklist_item_without_member_omits_param(self, mocker: Any) -> None:
+        """Test that idMember is not sent when no member is given."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "item123", "name": "New Item"}
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.add_checklist_item("checklist12345678901234", "New Item")
+
+        _, kwargs = mock_request.call_args
+        assert "idMember" not in kwargs["params"]
+
+    def test_get_checklist(self, mocker: Any) -> None:
+        """Test getting a single checklist by ID."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "checklist12345678901234",
+            "name": "Tasks",
+            "idBoard": "board1234567890abcdef12",
+            "idCard": "card12345678901234567890",
+        }
+
+        mocker.patch.object(client._client, "request", return_value=mock_response)
+
+        cl = client.get_checklist("checklist12345678901234")
+
+        assert cl["idBoard"] == "board1234567890abcdef12"
+
+    def test_add_checklist_item_with_due(self, mocker: Any) -> None:
+        """Test that due and dueReminder are sent when adding a checklist item."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "name": "New Item",
+            "due": "2026-07-01T00:00:00.000Z",
+        }
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.add_checklist_item(
+            "checklist12345678901234",
+            "New Item",
+            due="2026-07-01",
+            due_reminder=1440,
+        )
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["params"]["due"] == "2026-07-01"
+        assert kwargs["params"]["dueReminder"] == "1440"
+
+    def test_set_checklist_item_due(self, mocker: Any) -> None:
+        """Test setting a checklist item's due date."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "due": "2026-07-01T00:00:00.000Z",
+        }
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.set_checklist_item_due(
+            "card12345678901234567890", "item123", "2026-07-01", due_reminder=60
+        )
+
+        args, kwargs = mock_request.call_args
+        assert args[0] == "PUT"
+        assert kwargs["params"]["due"] == "2026-07-01"
+        assert kwargs["params"]["dueReminder"] == "60"
+
+    def test_set_checklist_item_due_clear(self, mocker: Any) -> None:
+        """Test that an empty due value clears the date and omits reminder."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "item123", "due": None}
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.set_checklist_item_due("card12345678901234567890", "item123", "")
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["params"]["due"] == ""
+        assert "dueReminder" not in kwargs["params"]
+
+    def test_set_checklist_item_member(self, mocker: Any) -> None:
+        """Test assigning a member to a checklist item."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "item123", "idMember": "member1"}
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        item = client.set_checklist_item_member(
+            "card12345678901234567890", "item123", "member1"
+        )
+
+        assert item["idMember"] == "member1"
+        args, kwargs = mock_request.call_args
+        assert args[0] == "PUT"
+        assert kwargs["params"]["idMember"] == "member1"
+
+    def test_set_checklist_item_member_clear(self, mocker: Any) -> None:
+        """Test that an empty member id clears the assignment."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "item123", "idMember": None}
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        client.set_checklist_item_member("card12345678901234567890", "item123", "")
+
+        _, kwargs = mock_request.call_args
+        assert kwargs["params"]["idMember"] == ""
+
     def test_update_checklist_item(self, mocker: Any) -> None:
         """Test updating a checklist item state."""
         client = TrelloClient(api_key="test_key", token="test_token")

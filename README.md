@@ -157,9 +157,19 @@ Checklist management commands.
 | `checklist list <card_id>` | List all checklists and items on a card |
 | `checklist create <card_id> --name <name>` | Create a checklist on a card |
 | `checklist delete <checklist_id>` | Delete a checklist |
-| `checklist add-item <checklist_id> --name <name> [--checked]` | Add an item to a checklist |
+| `checklist add-item <checklist_id> --name <name> [--checked] [--member <member>] [--due <date>] [--due-reminder <minutes>]` | Add an item to a checklist |
 | `checklist check <card_id> <item_id> [--uncheck]` | Mark a checklist item as complete or incomplete |
+| `checklist assign <card_id> <item_id> <member>` | Assign a member to a checklist item |
+| `checklist unassign <card_id> <item_id>` | Remove the assigned member from a checklist item |
+| `checklist set-due <card_id> <item_id> <due> [--reminder <minutes>]` | Set or clear a checklist item's due date (`null` to clear) |
 | `checklist delete-item <checklist_id> <item_id>` | Delete a checklist item |
+
+The `<member>` argument accepts a member ID, username, or full name (partial,
+case-insensitive matching), the same way board, list, and card names are resolved.
+
+Per-item members and due dates (`add-item --member`/`--due`, `assign`, `unassign`,
+`set-due`) use Trello's advanced checklists, which require a paid Trello plan. On free
+plans the API accepts the request without error but does not store the value.
 
 ### Multiple Profiles
 

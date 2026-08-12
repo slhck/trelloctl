@@ -53,6 +53,39 @@ To remove stored credentials:
 trelloctl auth logout
 ```
 
+### Headless Systems
+
+On a Linux server without a desktop environment there is usually no keychain available, and `keyring` will fail to store the credentials. Install the file-based backend from `keyrings.alt` alongside trelloctl:
+
+```bash
+uv tool install trelloctl --with keyrings.alt
+```
+
+If trelloctl is already installed, add `--force` to the command above. With pipx, run `pipx inject trelloctl keyrings.alt` instead.
+
+Then select the backend, either per shell session:
+
+```bash
+export PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring
+```
+
+or permanently in `~/.config/python_keyring/keyringrc.cfg`:
+
+```ini
+[backend]
+default-keyring=keyrings.alt.file.PlaintextKeyring
+```
+
+Finally, log in by passing both values directly, which skips the browser prompts:
+
+```bash
+trelloctl auth login --api-key YOUR_KEY --token YOUR_TOKEN
+```
+
+The credentials are then written to `~/.local/share/python_keyring/keyring_pass.cfg`. They are only base64-encoded, not encrypted, so restrict the permissions with `chmod 600`. There is also a `keyrings.alt.file.EncryptedKeyring` backend, but it asks for a master password on every command, which makes it impractical for cron jobs and scripts.
+
+If you already use [`pass`](https://www.passwordstore.org/), install `keyring-pass` instead and set `default-keyring=keyring_pass.PasswordStoreBackend` to get proper GPG encryption.
+
 ### Basic Command Examples
 
 ```bash

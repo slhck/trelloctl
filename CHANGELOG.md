@@ -1,3 +1,16 @@
+## [0.4.0] - 2026-08-19
+
+### 🚀 Features
+
+- Add checklist edit command
+
+### 📚 Documentation
+
+- Explain keyring setup on headless systems
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.4.0
 ## [0.3.0] - 2026-06-26
 
 ### 🚀 Features

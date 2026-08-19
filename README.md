@@ -195,6 +195,7 @@ Checklist management commands.
 | `checklist assign <card_id> <item_id> <member>` | Assign a member to a checklist item |
 | `checklist unassign <card_id> <item_id>` | Remove the assigned member from a checklist item |
 | `checklist set-due <card_id> <item_id> <due> [--reminder <minutes>]` | Set or clear a checklist item's due date (`null` to clear) |
+| `checklist edit-item <card_id> <item_id> --name <name>` | Edit a checklist item's text |
 | `checklist delete-item <checklist_id> <item_id>` | Delete a checklist item |
 
 The `<member>` argument accepts a member ID, username, or full name (partial,

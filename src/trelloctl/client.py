@@ -217,12 +217,29 @@ class TrelloClient:
         return self.post(f"/checklists/{checklist_id}/checkItems", params=params)
 
     def update_checklist_item(
-        self, card_id: str, check_item_id: str, state: str
+        self,
+        card_id: str,
+        check_item_id: str,
+        state: str | None = None,
+        *,
+        name: str | None = None,
     ) -> dict:
-        """Update a checklist item's state ('complete' or 'incomplete')."""
+        """Update a checklist item's state and/or text.
+
+        ``state`` may be ``complete`` or ``incomplete``. ``name`` updates the
+        item's text. At least one field must be provided.
+        """
+        params: dict[str, str] = {}
+        if state is not None:
+            params["state"] = state
+        if name is not None:
+            params["name"] = name
+        if not params:
+            raise ValueError("At least one checklist item field must be provided")
+
         return self.put(
             f"/cards/{card_id}/checkItem/{check_item_id}",
-            params={"state": state},
+            params=params,
         )
 
     def set_checklist_item_member(

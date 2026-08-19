@@ -295,6 +295,42 @@ class TestCardCommands:
         assert "Archived card" in result.output
 
 
+class TestChecklistCommands:
+    """Tests for checklist commands."""
+
+    def test_edit_item(self, runner: CliRunner, mocker: Any) -> None:
+        """Test editing a checklist item's text."""
+        mock_client = MagicMock()
+        mock_client.update_checklist_item.return_value = {
+            "id": "item123",
+            "name": "Renamed item",
+        }
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(
+                    main,
+                    [
+                        "checklist",
+                        "edit-item",
+                        "card12345678901234567890",
+                        "item123",
+                        "--name",
+                        "Renamed item",
+                    ],
+                )
+
+        assert result.exit_code == 0
+        assert "Updated item" in result.output
+        mock_client.update_checklist_item.assert_called_once_with(
+            "card12345678901234567890", "item123", name="Renamed item"
+        )
+
+
 class TestAuthCommands:
     """Tests for auth commands."""
 

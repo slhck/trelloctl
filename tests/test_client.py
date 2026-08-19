@@ -445,6 +445,29 @@ class TestTrelloClient:
 
         assert item["state"] == "complete"
 
+    def test_update_checklist_item_name(self, mocker: Any) -> None:
+        """Test updating a checklist item's text."""
+        client = TrelloClient(api_key="test_key", token="test_token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "item123",
+            "name": "Renamed item",
+        }
+
+        mock_request = mocker.patch.object(
+            client._client, "request", return_value=mock_response
+        )
+
+        item = client.update_checklist_item(
+            "card12345678901234567890", "item123", name="Renamed item"
+        )
+
+        assert item["name"] == "Renamed item"
+        _, kwargs = mock_request.call_args
+        assert kwargs["params"]["name"] == "Renamed item"
+
     def test_delete_checklist_item(self, mocker: Any) -> None:
         """Test deleting a checklist item."""
         client = TrelloClient(api_key="test_key", token="test_token")

@@ -292,6 +292,26 @@ def set_item_due(
         print_error(f"Failed to set due date: {e}")
 
 
+@checklist.command("edit-item")
+@click.argument("card_id")
+@click.argument("item_id")
+@click.option("--name", "name", required=True, help="New item text")
+@pass_context
+def edit_item(ctx: Context, card_id: str, item_id: str, name: str) -> None:
+    """Edit a checklist item's text.
+
+    CARD_ID is the card containing the item.
+    ITEM_ID is the checklist item to update.
+    """
+    client = ctx.ensure_client()
+
+    try:
+        client.update_checklist_item(card_id, item_id, name=name)
+        print_success(f"Updated item: {item_id}")
+    except Exception as e:
+        print_error(f"Failed to update item: {e}")
+
+
 @checklist.command("check")
 @click.argument("card_id")
 @click.argument("item_id")

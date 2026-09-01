@@ -1,3 +1,12 @@
+## [0.5.0] - 2026-09-01
+
+### 🚀 Features
+
+- Add env-based auth
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.5.0
 ## [0.4.0] - 2026-08-19
 
 ### 🚀 Features

@@ -41,6 +41,11 @@ trelloctl auth login
 
 The CLI will guide you through entering your API key and generating a token. Credentials are stored securely in your system keychain.
 
+For an ephemeral or managed environment, set `TRELLOCTL_API_KEY` and
+`TRELLOCTL_TOKEN` instead. Environment values take precedence over the keyring and
+are never written to it. This supports credential gateways that replace placeholder
+query parameters at the network boundary.
+
 To check your authentication status:
 
 ```bash

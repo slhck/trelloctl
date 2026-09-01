@@ -1,11 +1,14 @@
 """Configuration management for Trello CLI."""
 
 import json
+import os
 from pathlib import Path
 
 import keyring
 
 SERVICE_NAME = "trelloctl"
+API_KEY_ENV_VAR = "TRELLOCTL_API_KEY"
+TOKEN_ENV_VAR = "TRELLOCTL_TOKEN"
 
 
 class Config:
@@ -28,16 +31,20 @@ class Config:
         self.config_file.write_text(json.dumps(config, indent=2))
 
     def get_api_key(self) -> str | None:
-        """Get the API key from keyring."""
-        return keyring.get_password(SERVICE_NAME, f"{self.profile}:api_key")
+        """Get the API key from the environment or keyring."""
+        return os.environ.get(API_KEY_ENV_VAR) or keyring.get_password(
+            SERVICE_NAME, f"{self.profile}:api_key"
+        )
 
     def set_api_key(self, api_key: str) -> None:
         """Store the API key in keyring."""
         keyring.set_password(SERVICE_NAME, f"{self.profile}:api_key", api_key)
 
     def get_token(self) -> str | None:
-        """Get the token from keyring."""
-        return keyring.get_password(SERVICE_NAME, f"{self.profile}:token")
+        """Get the token from the environment or keyring."""
+        return os.environ.get(TOKEN_ENV_VAR) or keyring.get_password(
+            SERVICE_NAME, f"{self.profile}:token"
+        )
 
     def set_token(self, token: str) -> None:
         """Store the token in keyring."""

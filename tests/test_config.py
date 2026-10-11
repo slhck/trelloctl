@@ -32,7 +32,8 @@ def test_token_environment_variable_takes_precedence(
 def test_credentials_fall_back_to_keyring(mocker, tmp_path) -> None:
     """Retain the existing keyring behavior when no environment is set."""
     keyring_get = mocker.patch(
-        "trelloctl.config.keyring.get_password", side_effect=["keyring-key", "keyring-token"]
+        "trelloctl.config.keyring.get_password",
+        side_effect=["keyring-key", "keyring-token"],
     )
     config = Config()
     config.config_dir = tmp_path

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import traceback
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -13,6 +14,51 @@ from trelloctl.client import TrelloClient
 
 class TestTrelloClient:
     """Tests for TrelloClient."""
+
+    @pytest.mark.parametrize("status_code", [301, 400, 401, 403, 404, 429, 500])
+    def test_http_error_hides_credentials(self, status_code: int) -> None:
+        """Real HTTPX status errors and tracebacks must not expose credentials."""
+        client = TrelloClient(api_key="secret_key", token="secret_token")
+
+        def respond(request: httpx.Request) -> httpx.Response:
+            assert request.url.params["key"] == "secret_key"
+            assert request.url.params["token"] == "secret_token"
+            return httpx.Response(status_code, request=request)
+
+        with httpx.Client(transport=httpx.MockTransport(respond)) as transport_client:
+            client._client = transport_client
+            with pytest.raises(httpx.HTTPStatusError) as error:
+                client.get_boards()
+
+        message = "".join(traceback.format_exception(error.value))
+        assert "secret_key" not in message
+        assert "secret_token" not in message
+        assert (
+            f"GET https://api.trello.com/1/members/me/boards: HTTP {status_code}"
+            in message
+        )
+        assert error.value.response.status_code == status_code
+
+    @pytest.mark.parametrize("error_type", [httpx.ConnectError, httpx.ReadTimeout])
+    def test_transport_error_hides_credentials(
+        self, error_type: type[httpx.RequestError]
+    ) -> None:
+        """Transport errors can contain authenticated URLs too."""
+        client = TrelloClient(api_key="secret_key", token="secret_token")
+
+        def fail(request: httpx.Request) -> httpx.Response:
+            raise error_type(f"Failed request: {request.url}", request=request)
+
+        with httpx.Client(transport=httpx.MockTransport(fail)) as transport_client:
+            client._client = transport_client
+            with pytest.raises(error_type) as error:
+                client.get_boards()
+
+        message = "".join(traceback.format_exception(error.value))
+        assert "secret_key" not in message
+        assert "secret_token" not in message
+        assert "GET https://api.trello.com/1/members/me/boards" in message
+        assert error_type.__name__ in message
 
     def test_auth_params(self) -> None:
         """Test that auth params are correctly generated."""

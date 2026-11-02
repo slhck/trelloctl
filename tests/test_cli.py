@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx
 import pytest
 from click.testing import CliRunner
 
@@ -19,6 +20,28 @@ def runner() -> CliRunner:
 
 class TestCLI:
     """Tests for the main CLI."""
+
+    @pytest.mark.parametrize(
+        "command", [["card", "show", "missing-card"], ["auth", "status"]]
+    )
+    def test_failed_request_hides_credentials(
+        self, runner: CliRunner, mocker: Any, command: list[str]
+    ) -> None:
+        """Command error output must never include authentication parameters."""
+        config = mocker.patch("trelloctl.cli.Config").return_value
+        config.get_api_key.return_value = "secret_key"
+        config.get_token.return_value = "secret_token"
+
+        def respond(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(401, request=request)
+
+        with httpx.Client(transport=httpx.MockTransport(respond)) as transport_client:
+            mocker.patch("trelloctl.client.httpx.Client", return_value=transport_client)
+            result = runner.invoke(main, command)
+
+        assert "HTTP 401" in result.stderr
+        assert "secret_key" not in result.output
+        assert "secret_token" not in result.output
 
     def test_help(self, runner: CliRunner) -> None:
         """Test --help flag."""

@@ -32,8 +32,22 @@ class TrelloClient:
         if params:
             all_params.update(params)
 
-        response = self._client.request(method, url, params=all_params, json=json)
-        response.raise_for_status()
+        try:
+            response = self._client.request(method, url, params=all_params, json=json)
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            # HTTPX's default message includes the URL with authentication params.
+            # Suppress the original exception so tracebacks cannot print it either.
+            raise httpx.HTTPStatusError(
+                f"{method} {url}: HTTP {exc.response.status_code}",
+                request=exc.request,
+                response=exc.response,
+            ) from None
+        except httpx.RequestError as exc:
+            # Transport errors may also include the authenticated URL in their text.
+            raise type(exc)(
+                f"{method} {url}: {type(exc).__name__}", request=exc.request
+            ) from None
 
         if response.status_code == 204:
             return None

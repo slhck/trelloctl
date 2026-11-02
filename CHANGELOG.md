@@ -1,3 +1,19 @@
+## [0.5.2] - 2026-11-02
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump certifi to 2026.10.19
+- *(client)* Hide credentials in request errors
+
+### 🎨 Styling
+
+- Format tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Update pre-commit config
+- Add commitizen commit message hook
+- Bump version to 0.5.2
 ## [0.5.1] - 2026-10-11
 
 ### 🐛 Bug Fixes

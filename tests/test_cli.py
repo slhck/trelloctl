@@ -386,6 +386,233 @@ class TestAuthCommands:
         assert "Credentials removed" in result.output
 
 
+CARD = {"id": "card1", "name": "Task", "url": "https://trello.com/c/x"}
+BOARD = {"id": "507f1f77bcf86cd799439011", "name": "Dev", "url": "u"}
+LIST = {"id": "507f191e810c19729de860ea", "name": "To Do", "idBoard": BOARD["id"]}
+ITEM = {"id": "item1", "name": "Do", "state": "incomplete", "idChecklist": "cl1"}
+COMMENT = {
+    "id": "action1",
+    "date": "2026-11-04",
+    "memberCreator": {"fullName": "Jo"},
+    "data": {"text": "Text"},
+}
+BOARD_ID = BOARD["id"]
+LIST_ID = LIST["id"]
+
+
+class TestWriteOutput:
+    """Tests for the output of write commands in machine-readable formats."""
+
+    @pytest.mark.parametrize(
+        ("command", "method", "response", "expected"),
+        [
+            (
+                ["card", "create", LIST_ID, "-b", BOARD_ID, "-n", "Task"],
+                "create_card",
+                CARD,
+                {"id": "card1", "url": CARD["url"]},
+            ),
+            (
+                ["card", "move", "card1", LIST_ID, "-b", BOARD_ID],
+                "move_card",
+                CARD,
+                {"id": "card1"},
+            ),
+            (
+                ["card", "update", "card1", "-n", "Task"],
+                "update_card",
+                CARD,
+                {"id": "card1", "name": "Task"},
+            ),
+            (["card", "archive", "card1"], "archive_card", CARD, {"id": "card1"}),
+            (
+                ["card", "delete", "card1", "--yes"],
+                "delete_card",
+                None,
+                {"id": "card1", "deleted": True},
+            ),
+            (
+                ["card", "assign", "card1", "member1"],
+                "add_card_member",
+                [],
+                {"id": "card1", "member_id": "member1"},
+            ),
+            (
+                ["card", "unassign", "card1", "member1"],
+                "remove_card_member",
+                [],
+                {"id": "card1", "member_id": "member1"},
+            ),
+            (
+                ["card", "comment", "card1", "Text"],
+                "add_card_comment",
+                COMMENT,
+                {"id": "action1", "author": "Jo", "text": "Text"},
+            ),
+            (
+                ["board", "create", "--name", "Dev"],
+                "create_board",
+                BOARD,
+                {"id": BOARD_ID, "url": "u"},
+            ),
+            (["board", "close", BOARD_ID], "close_board", BOARD, {"id": BOARD_ID}),
+            (
+                ["board", "delete", BOARD_ID, "--yes"],
+                "delete_board",
+                None,
+                {"id": BOARD_ID, "deleted": True},
+            ),
+            (
+                ["list", "create", BOARD_ID, "--name", "To Do"],
+                "create_list",
+                LIST,
+                {"id": LIST_ID, "board_id": BOARD_ID},
+            ),
+            (
+                ["list", "archive", LIST_ID, "-b", BOARD_ID],
+                "archive_list",
+                LIST,
+                {"id": LIST_ID},
+            ),
+            (
+                ["checklist", "create", "card1", "--name", "Tasks"],
+                "create_checklist",
+                {"id": "cl1", "name": "Tasks"},
+                {"id": "cl1", "name": "Tasks", "card_id": "card1"},
+            ),
+            (
+                ["checklist", "delete", "cl1", "--yes"],
+                "delete_checklist",
+                None,
+                {"id": "cl1", "deleted": True},
+            ),
+            (
+                ["checklist", "add-item", "cl1", "--name", "Do"],
+                "add_checklist_item",
+                ITEM,
+                {"id": "item1", "checklist_id": "cl1"},
+            ),
+            (
+                ["checklist", "assign", "card1", "item1", BOARD_ID],
+                "set_checklist_item_member",
+                ITEM,
+                {"id": "item1"},
+            ),
+            (
+                ["checklist", "unassign", "card1", "item1"],
+                "set_checklist_item_member",
+                ITEM,
+                {"id": "item1"},
+            ),
+            (
+                ["checklist", "set-due", "card1", "item1", "2026-12-01"],
+                "set_checklist_item_due",
+                ITEM,
+                {"id": "item1"},
+            ),
+            (
+                ["checklist", "edit-item", "card1", "item1", "--name", "Do"],
+                "update_checklist_item",
+                ITEM,
+                {"id": "item1", "name": "Do"},
+            ),
+            (
+                ["checklist", "check", "card1", "item1"],
+                "update_checklist_item",
+                ITEM,
+                {"id": "item1", "state": "incomplete"},
+            ),
+            (
+                ["checklist", "delete-item", "cl1", "item1"],
+                "delete_checklist_item",
+                None,
+                {"id": "item1", "deleted": True},
+            ),
+        ],
+    )
+    def test_json_output(
+        self,
+        runner: CliRunner,
+        command: list[str],
+        method: str,
+        response: Any,
+        expected: dict,
+    ) -> None:
+        """Write commands must print one JSON object and no status message."""
+        mock_client = MagicMock()
+        getattr(mock_client, method).return_value = response
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(main, ["--format", "json", *command])
+
+        assert result.exit_code == 0, result.output
+        assert result.stderr == ""
+        assert expected.items() <= json.loads(result.stdout).items()
+
+    def test_plain_output_is_id(self, runner: CliRunner) -> None:
+        """Write commands in plain format must print only the ID."""
+        mock_client = MagicMock()
+        mock_client.create_checklist.return_value = {"id": "cl1", "name": "Tasks"}
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(
+                    main,
+                    ["--format", "plain", "checklist", "create", "card1", "-n", "T"],
+                )
+
+        assert result.stdout == "cl1\n"
+
+    def test_csv_output_has_header_and_row(self, runner: CliRunner) -> None:
+        """Write commands in CSV format must print a header and one row."""
+        mock_client = MagicMock()
+        mock_client.create_checklist.return_value = {"id": "cl1", "name": "Tasks"}
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(
+                    main, ["--format", "csv", "checklist", "create", "card1", "-n", "T"]
+                )
+
+        assert result.stdout == "id,name,card_id\ncl1,Tasks,card1\n"
+
+    def test_auth_status_json(self, runner: CliRunner) -> None:
+        """Auth status must honor the output format."""
+        mock_client = MagicMock()
+        mock_client.get_me.return_value = {
+            "id": "member1",
+            "username": "jo",
+            "fullName": "Jo",
+        }
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(main, ["--format", "json", "auth", "status"])
+
+        assert json.loads(result.stdout) == {
+            "id": "member1",
+            "username": "jo",
+            "full_name": "Jo",
+        }
+
+
 class TestExitCodes:
     """Tests for exit codes of failed commands."""
 

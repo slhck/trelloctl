@@ -8,10 +8,22 @@ from trelloctl.cli import Context, pass_context
 from trelloctl.output import (
     format_output,
     exit_with_error,
-    print_success,
+    output_result,
     print_warning,
 )
 from trelloctl.resolver import is_trello_id
+
+
+def _item_data(item: dict) -> dict:
+    """Convert a Trello checklist item to its output fields."""
+    return {
+        "id": item["id"],
+        "name": item.get("name", ""),
+        "state": item.get("state", ""),
+        "checklist_id": item.get("idChecklist", ""),
+        "member_id": item.get("idMember") or "",
+        "due": item.get("due") or "",
+    }
 
 
 @click.group()
@@ -141,7 +153,11 @@ def create_checklist(ctx: Context, card_id: str, name: str) -> None:
 
     try:
         cl = client.create_checklist(card_id, name)
-        print_success(f"Created checklist: {cl['name']} ({cl['id']})")
+        output_result(
+            {"id": cl["id"], "name": cl["name"], "card_id": card_id},
+            ctx.format,
+            f"Created checklist: {cl['name']} ({cl['id']})",
+        )
     except Exception as e:
         exit_with_error(f"Failed to create checklist: {e}")
 
@@ -156,7 +172,11 @@ def delete_checklist(ctx: Context, checklist_id: str) -> None:
 
     try:
         client.delete_checklist(checklist_id)
-        print_success(f"Deleted checklist: {checklist_id}")
+        output_result(
+            {"id": checklist_id, "deleted": True},
+            ctx.format,
+            f"Deleted checklist: {checklist_id}",
+        )
     except Exception as e:
         exit_with_error(f"Failed to delete checklist: {e}")
 
@@ -207,7 +227,11 @@ def add_item(
             due=due,
             due_reminder=due_reminder,
         )
-        print_success(f"Added item: {item['name']} ({item['id']})")
+        output_result(
+            _item_data(item),
+            ctx.format,
+            f"Added item: {item['name']} ({item['id']})",
+        )
     except Exception as e:
         exit_with_error(f"Failed to add item: {e}")
 
@@ -230,8 +254,10 @@ def assign_item(ctx: Context, card_id: str, item_id: str, member: str) -> None:
 
     try:
         member_id = _member_id_from_card(ctx, client, card_id, member)
-        client.set_checklist_item_member(card_id, item_id, member_id)
-        print_success(f"Assigned {member} to item {item_id}")
+        item = client.set_checklist_item_member(card_id, item_id, member_id)
+        output_result(
+            _item_data(item), ctx.format, f"Assigned {member} to item {item_id}"
+        )
     except Exception as e:
         exit_with_error(f"Failed to assign member: {e}")
 
@@ -249,8 +275,12 @@ def unassign_item(ctx: Context, card_id: str, item_id: str) -> None:
     client = ctx.ensure_client()
 
     try:
-        client.set_checklist_item_member(card_id, item_id, "")
-        print_success(f"Removed assigned member from item {item_id}")
+        item = client.set_checklist_item_member(card_id, item_id, "")
+        output_result(
+            _item_data(item),
+            ctx.format,
+            f"Removed assigned member from item {item_id}",
+        )
     except Exception as e:
         exit_with_error(f"Failed to unassign member: {e}")
 
@@ -280,13 +310,15 @@ def set_item_due(
     due_value = "" if due.lower() == "null" else due
 
     try:
-        client.set_checklist_item_due(
+        item = client.set_checklist_item_due(
             card_id, item_id, due_value, due_reminder=reminder
         )
-        if due_value:
-            print_success(f"Set due date on item {item_id} to {due_value}")
-        else:
-            print_success(f"Removed due date from item {item_id}")
+        message = (
+            f"Set due date on item {item_id} to {due_value}"
+            if due_value
+            else f"Removed due date from item {item_id}"
+        )
+        output_result(_item_data(item), ctx.format, message)
     except Exception as e:
         exit_with_error(f"Failed to set due date: {e}")
 
@@ -305,8 +337,8 @@ def edit_item(ctx: Context, card_id: str, item_id: str, name: str) -> None:
     client = ctx.ensure_client()
 
     try:
-        client.update_checklist_item(card_id, item_id, name=name)
-        print_success(f"Updated item: {item_id}")
+        item = client.update_checklist_item(card_id, item_id, name=name)
+        output_result(_item_data(item), ctx.format, f"Updated item: {item_id}")
     except Exception as e:
         exit_with_error(f"Failed to update item: {e}")
 
@@ -326,9 +358,9 @@ def check_item(ctx: Context, card_id: str, item_id: str, uncheck: bool) -> None:
     state = "incomplete" if uncheck else "complete"
 
     try:
-        client.update_checklist_item(card_id, item_id, state)
+        item = client.update_checklist_item(card_id, item_id, state)
         action = "Unchecked" if uncheck else "Checked"
-        print_success(f"{action} item: {item_id}")
+        output_result(_item_data(item), ctx.format, f"{action} item: {item_id}")
     except Exception as e:
         exit_with_error(f"Failed to update item: {e}")
 
@@ -343,6 +375,8 @@ def delete_item(ctx: Context, checklist_id: str, item_id: str) -> None:
 
     try:
         client.delete_checklist_item(checklist_id, item_id)
-        print_success(f"Deleted item: {item_id}")
+        output_result(
+            {"id": item_id, "deleted": True}, ctx.format, f"Deleted item: {item_id}"
+        )
     except Exception as e:
         exit_with_error(f"Failed to delete item: {e}")

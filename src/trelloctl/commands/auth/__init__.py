@@ -5,7 +5,12 @@ import webbrowser
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import exit_with_error, print_info, print_success
+from trelloctl.output import (
+    exit_with_error,
+    output_result,
+    print_info,
+    print_success,
+)
 
 
 @click.group()
@@ -65,7 +70,11 @@ def status(ctx: Context) -> None:
     try:
         client = ctx.ensure_client()
         me = client.get_me()
-        print_success(f"Authenticated as: {me['fullName']} (@{me['username']})")
+        output_result(
+            {"id": me["id"], "username": me["username"], "full_name": me["fullName"]},
+            ctx.format,
+            f"Authenticated as: {me['fullName']} (@{me['username']})",
+        )
     except Exception as e:
         exit_with_error(f"Authentication error: {e}")
 

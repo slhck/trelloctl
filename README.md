@@ -122,6 +122,20 @@ trelloctl --format csv board list
 
 Names support partial matching (case-insensitive). If multiple items match, you'll be prompted to be more specific.
 
+## Scripting
+
+Use `--format json` to get machine-readable output from any command except `auth login` and `auth logout`.
+
+- Commands that return one item, including `show` commands and all write commands, print a JSON object. Commands that return several items print a JSON array.
+- Every write command returns an object with an `id`. For example, `card create` returns the same fields as `card show`, including `url`.
+- With `--format plain`, write commands print only the ID.
+- Failed commands print the error to stderr, print nothing to stdout, and exit with a non-zero status.
+
+```bash
+card_id=$(trelloctl --format plain card create "To Do" --board Development --name "New task")
+trelloctl --format json checklist create "$card_id" --name "Tasks"
+```
+
 ## Command Reference
 
 ### Global Options

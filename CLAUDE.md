@@ -50,3 +50,5 @@ This is a CLI tool for Trello built with Click, using a layered architecture:
 - Commands access the authenticated client via `ctx.ensure_client()` which exits with error if not authenticated
 - Use `ctx.resolver.resolve_board()`, `resolve_list()`, `resolve_card()` for name→ID resolution
 - Output data as list of dicts, pass to `format_output()` with column definitions
+- Write commands pass the result to `output_result()`, which prints a status message in table format and the data in other formats
+- Report failures with `exit_with_error()`, which prints to stderr and exits with status 1

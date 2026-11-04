@@ -3,7 +3,18 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, exit_with_error, print_success
+from trelloctl.output import exit_with_error, format_output, output_result
+
+
+def _board_data(b: dict) -> dict:
+    """Convert a Trello board to its output fields."""
+    return {
+        "id": b["id"],
+        "name": b.get("name", ""),
+        "description": b.get("desc", ""),
+        "url": b.get("url", ""),
+        "closed": "Yes" if b.get("closed") else "No",
+    }
 
 
 @click.group()
@@ -67,16 +78,8 @@ def show_board(ctx: Context, board: str) -> None:
     except Exception as e:
         exit_with_error(str(e))
 
-    data = {
-        "id": board_data["id"],
-        "name": board_data["name"],
-        "description": board_data.get("desc", ""),
-        "url": board_data["url"],
-        "closed": "Yes" if board_data.get("closed") else "No",
-    }
-
     format_output(
-        data,
+        _board_data(board_data),
         ctx.format,
         columns=[
             ("name", "Name"),
@@ -98,7 +101,11 @@ def create_board(ctx: Context, name: str, description: str) -> None:
 
     try:
         board_data = client.create_board(name, description)
-        print_success(f"Created board: {board_data['name']} ({board_data['id']})")
+        output_result(
+            _board_data(board_data),
+            ctx.format,
+            f"Created board: {board_data['name']} ({board_data['id']})",
+        )
     except Exception as e:
         exit_with_error(f"Failed to create board: {e}")
 
@@ -116,9 +123,9 @@ def close_board(ctx: Context, board: str, reopen: bool) -> None:
 
     try:
         board_id = ctx.resolver.resolve_board(board)
-        client.close_board(board_id, closed=not reopen)
+        board_data = client.close_board(board_id, closed=not reopen)
         action = "Reopened" if reopen else "Closed"
-        print_success(f"{action} board: {board}")
+        output_result(_board_data(board_data), ctx.format, f"{action} board: {board}")
     except Exception as e:
         exit_with_error(str(e))
 
@@ -137,7 +144,9 @@ def delete_board(ctx: Context, board: str) -> None:
     try:
         board_id = ctx.resolver.resolve_board(board)
         client.delete_board(board_id)
-        print_success(f"Deleted board: {board}")
+        output_result(
+            {"id": board_id, "deleted": True}, ctx.format, f"Deleted board: {board}"
+        )
     except Exception as e:
         exit_with_error(str(e))
 

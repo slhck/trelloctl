@@ -3,7 +3,33 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, exit_with_error, print_success
+from trelloctl.output import exit_with_error, format_output, output_result
+
+
+def _card_data(c: dict) -> dict:
+    """Convert a Trello card to its output fields."""
+    return {
+        "id": c["id"],
+        "name": c.get("name", ""),
+        "description": c.get("desc", ""),
+        "due": c.get("due", ""),
+        "url": c.get("url", ""),
+        "list_id": c.get("idList", ""),
+        "labels": ", ".join(
+            lbl.get("name", lbl.get("color", "")) for lbl in c.get("labels", [])
+        ),
+        "closed": "Yes" if c.get("closed") else "No",
+    }
+
+
+def _comment_data(c: dict) -> dict:
+    """Convert a Trello comment action to its output fields."""
+    return {
+        "id": c["id"],
+        "author": c.get("memberCreator", {}).get("fullName", "Unknown"),
+        "date": c.get("date", ""),
+        "text": c.get("data", {}).get("text", ""),
+    }
 
 
 @click.group()
@@ -27,21 +53,8 @@ def show_card(ctx: Context, card: str) -> None:
     except Exception as e:
         exit_with_error(f"Failed to get card: {e}")
 
-    data = {
-        "id": c["id"],
-        "name": c["name"],
-        "description": c.get("desc", ""),
-        "due": c.get("due", ""),
-        "url": c.get("url", ""),
-        "list_id": c.get("idList", ""),
-        "labels": ", ".join(
-            lbl.get("name", lbl.get("color", "")) for lbl in c.get("labels", [])
-        ),
-        "closed": "Yes" if c.get("closed") else "No",
-    }
-
     format_output(
-        data,
+        _card_data(c),
         ctx.format,
         columns=[
             ("name", "Name"),
@@ -100,7 +113,9 @@ def create_card(
             labels=list(label) if label else None,
             members=list(member) if member else None,
         )
-        print_success(f"Created card: {c['name']} ({c['id']})")
+        output_result(
+            _card_data(c), ctx.format, f"Created card: {c['name']} ({c['id']})"
+        )
     except Exception as e:
         exit_with_error(str(e))
 
@@ -130,8 +145,10 @@ def move_card(
 
     try:
         list_id = ctx.resolver.resolve_list(board, target_list)
-        client.move_card(card_id, list_id, pos=position)
-        print_success(f"Moved card {card_id} to list {target_list}")
+        c = client.move_card(card_id, list_id, pos=position)
+        output_result(
+            _card_data(c), ctx.format, f"Moved card {card_id} to list {target_list}"
+        )
     except Exception as e:
         exit_with_error(str(e))
 
@@ -145,9 +162,9 @@ def archive_card(ctx: Context, card_id: str, unarchive: bool) -> None:
     client = ctx.ensure_client()
 
     try:
-        client.archive_card(card_id, closed=not unarchive)
+        c = client.archive_card(card_id, closed=not unarchive)
         action = "Unarchived" if unarchive else "Archived"
-        print_success(f"{action} card: {card_id}")
+        output_result(_card_data(c), ctx.format, f"{action} card: {card_id}")
     except Exception as e:
         exit_with_error(f"Failed to archive card: {e}")
 
@@ -162,7 +179,9 @@ def delete_card(ctx: Context, card_id: str) -> None:
 
     try:
         client.delete_card(card_id)
-        print_success(f"Deleted card: {card_id}")
+        output_result(
+            {"id": card_id, "deleted": True}, ctx.format, f"Deleted card: {card_id}"
+        )
     except Exception as e:
         exit_with_error(f"Failed to delete card: {e}")
 
@@ -177,7 +196,11 @@ def assign_card(ctx: Context, card_id: str, member_id: str) -> None:
 
     try:
         client.add_card_member(card_id, member_id)
-        print_success(f"Assigned {member_id} to card {card_id}")
+        output_result(
+            {"id": card_id, "member_id": member_id},
+            ctx.format,
+            f"Assigned {member_id} to card {card_id}",
+        )
     except Exception as e:
         exit_with_error(f"Failed to assign member: {e}")
 
@@ -192,7 +215,11 @@ def unassign_card(ctx: Context, card_id: str, member_id: str) -> None:
 
     try:
         client.remove_card_member(card_id, member_id)
-        print_success(f"Removed {member_id} from card {card_id}")
+        output_result(
+            {"id": card_id, "member_id": member_id},
+            ctx.format,
+            f"Removed {member_id} from card {card_id}",
+        )
     except Exception as e:
         exit_with_error(f"Failed to unassign member: {e}")
 
@@ -206,8 +233,8 @@ def add_comment(ctx: Context, card_id: str, text: str) -> None:
     client = ctx.ensure_client()
 
     try:
-        client.add_card_comment(card_id, text)
-        print_success("Comment added")
+        comment = client.add_card_comment(card_id, text)
+        output_result(_comment_data(comment), ctx.format, "Comment added")
     except Exception as e:
         exit_with_error(f"Failed to add comment: {e}")
 
@@ -224,18 +251,8 @@ def list_comments(ctx: Context, card_id: str) -> None:
     except Exception as e:
         exit_with_error(f"Failed to get comments: {e}")
 
-    data = [
-        {
-            "id": c["id"],
-            "author": c.get("memberCreator", {}).get("fullName", "Unknown"),
-            "date": c.get("date", ""),
-            "text": c.get("data", {}).get("text", ""),
-        }
-        for c in comments
-    ]
-
     format_output(
-        data,
+        [_comment_data(c) for c in comments],
         ctx.format,
         columns=[("author", "Author"), ("date", "Date"), ("text", "Comment")],
         title="Comments",
@@ -271,7 +288,7 @@ def update_card(
         exit_with_error("No updates specified")
 
     try:
-        client.update_card(card_id, **kwargs)
-        print_success(f"Updated card: {card_id}")
+        c = client.update_card(card_id, **kwargs)
+        output_result(_card_data(c), ctx.format, f"Updated card: {card_id}")
     except Exception as e:
         exit_with_error(f"Failed to update card: {e}")

@@ -3,7 +3,17 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, exit_with_error, print_success
+from trelloctl.output import exit_with_error, format_output, output_result
+
+
+def _list_data(lst: dict) -> dict:
+    """Convert a Trello list to its output fields."""
+    return {
+        "id": lst["id"],
+        "name": lst.get("name", ""),
+        "closed": "Yes" if lst.get("closed") else "No",
+        "board_id": lst.get("idBoard", ""),
+    }
 
 
 @click.group("list")
@@ -70,15 +80,8 @@ def show_list(ctx: Context, list_name: str, board: str) -> None:
     except Exception as e:
         exit_with_error(str(e))
 
-    data = {
-        "id": lst["id"],
-        "name": lst["name"],
-        "closed": "Yes" if lst.get("closed") else "No",
-        "board_id": lst.get("idBoard", ""),
-    }
-
     format_output(
-        data,
+        _list_data(lst),
         ctx.format,
         columns=[
             ("name", "Name"),
@@ -110,7 +113,9 @@ def create_list(ctx: Context, board: str, name: str, position: str) -> None:
     try:
         board_id = ctx.resolver.resolve_board(board)
         lst = client.create_list(board_id, name, pos=position)
-        print_success(f"Created list: {lst['name']} ({lst['id']})")
+        output_result(
+            _list_data(lst), ctx.format, f"Created list: {lst['name']} ({lst['id']})"
+        )
     except Exception as e:
         exit_with_error(str(e))
 
@@ -129,9 +134,9 @@ def archive_list(ctx: Context, list_name: str, board: str, unarchive: bool) -> N
 
     try:
         list_id = ctx.resolver.resolve_list(board, list_name)
-        client.archive_list(list_id, closed=not unarchive)
+        lst = client.archive_list(list_id, closed=not unarchive)
         action = "Unarchived" if unarchive else "Archived"
-        print_success(f"{action} list: {list_name}")
+        output_result(_list_data(lst), ctx.format, f"{action} list: {list_name}")
     except Exception as e:
         exit_with_error(str(e))
 

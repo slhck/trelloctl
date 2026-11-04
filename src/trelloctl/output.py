@@ -101,6 +101,18 @@ def print_warning(message: str) -> None:
     error_console.print(f"[yellow]![/yellow] {message}")
 
 
+def output_result(data: dict, format: OutputFormat, message: str) -> None:
+    """Output the result of a write command.
+
+    Table format prints the status message. Other formats print only the data,
+    and plain format prints only its ID.
+    """
+    if format == OutputFormat.TABLE:
+        print_success(message)
+    else:
+        format_output(data, format, template="{id}")
+
+
 def print_info(message: str) -> None:
     """Print an info message."""
     console.print(f"[blue]ℹ[/blue] {message}")

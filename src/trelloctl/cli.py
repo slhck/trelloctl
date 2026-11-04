@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import os
-import sys
 
 import click
 
 from trelloctl import __version__
 from trelloctl.client import TrelloClient
 from trelloctl.config import Config
-from trelloctl.output import OutputFormat, print_error
+from trelloctl.output import OutputFormat, exit_with_error
 from trelloctl.resolver import Resolver
 
 
@@ -31,8 +30,7 @@ class Context:
             token = self.config.get_token()
 
             if not api_key or not token:
-                print_error("Not authenticated. Run 'trelloctl auth login' first.")
-                sys.exit(1)
+                exit_with_error("Not authenticated. Run 'trelloctl auth login' first.")
 
             self.client = TrelloClient(api_key, token)
 

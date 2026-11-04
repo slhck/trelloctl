@@ -39,6 +39,7 @@ class TestCLI:
             mocker.patch("trelloctl.client.httpx.Client", return_value=transport_client)
             result = runner.invoke(main, command)
 
+        assert result.exit_code == 1
         assert "HTTP 401" in result.stderr
         assert "secret_key" not in result.output
         assert "secret_token" not in result.output
@@ -369,6 +370,7 @@ class TestAuthCommands:
                 mock_context_cls.return_value = mock_ctx
                 result = runner.invoke(main, ["auth", "status"])
 
+        assert result.exit_code == 1
         assert "Not authenticated" in result.output
 
     def test_auth_logout(self, runner: CliRunner, mocker: Any) -> None:
@@ -381,6 +383,57 @@ class TestAuthCommands:
 
         assert result.exit_code == 0
         assert "Credentials removed" in result.output
+
+
+class TestExitCodes:
+    """Tests for exit codes of failed commands."""
+
+    @pytest.mark.parametrize(
+        ("command", "method"),
+        [
+            (["board", "list"], "get_boards"),
+            (["board", "create", "--name", "New"], "create_board"),
+            (["card", "archive", "card1"], "archive_card"),
+            (["card", "delete", "card1", "--yes"], "delete_card"),
+            (["card", "comment", "card1", "Text"], "add_card_comment"),
+            (["checklist", "create", "card1", "--name", "New"], "create_checklist"),
+            (["checklist", "add-item", "cl1", "--name", "New"], "add_checklist_item"),
+            (["checklist", "delete-item", "cl1", "item1"], "delete_checklist_item"),
+        ],
+    )
+    def test_api_failure_exits_non_zero(
+        self, runner: CliRunner, command: list[str], method: str
+    ) -> None:
+        """Failed API calls must exit with status 1 and report on stderr."""
+        mock_client = MagicMock()
+        getattr(mock_client, method).side_effect = RuntimeError("HTTP 500")
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(main, command)
+
+        assert result.exit_code == 1
+        assert "HTTP 500" in result.stderr
+        assert result.stdout == ""
+
+    def test_card_update_without_changes_exits_non_zero(
+        self, runner: CliRunner
+    ) -> None:
+        """A card update with no fields must exit with status 1."""
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=MagicMock()):
+                result = runner.invoke(main, ["card", "update", "card1"])
+
+        assert result.exit_code == 1
+        assert "No updates specified" in result.stderr
 
 
 class TestOutputFormats:

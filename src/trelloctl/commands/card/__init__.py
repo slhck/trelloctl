@@ -3,7 +3,7 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, print_error, print_success
+from trelloctl.output import format_output, exit_with_error, print_success
 
 
 @click.group()
@@ -25,8 +25,7 @@ def show_card(ctx: Context, card: str) -> None:
     try:
         c = client.get_card(card)
     except Exception as e:
-        print_error(f"Failed to get card: {e}")
-        return
+        exit_with_error(f"Failed to get card: {e}")
 
     data = {
         "id": c["id"],
@@ -103,7 +102,7 @@ def create_card(
         )
         print_success(f"Created card: {c['name']} ({c['id']})")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @card.command("move")
@@ -134,7 +133,7 @@ def move_card(
         client.move_card(card_id, list_id, pos=position)
         print_success(f"Moved card {card_id} to list {target_list}")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @card.command("archive")
@@ -150,7 +149,7 @@ def archive_card(ctx: Context, card_id: str, unarchive: bool) -> None:
         action = "Unarchived" if unarchive else "Archived"
         print_success(f"{action} card: {card_id}")
     except Exception as e:
-        print_error(f"Failed to archive card: {e}")
+        exit_with_error(f"Failed to archive card: {e}")
 
 
 @card.command("delete")
@@ -165,7 +164,7 @@ def delete_card(ctx: Context, card_id: str) -> None:
         client.delete_card(card_id)
         print_success(f"Deleted card: {card_id}")
     except Exception as e:
-        print_error(f"Failed to delete card: {e}")
+        exit_with_error(f"Failed to delete card: {e}")
 
 
 @card.command("assign")
@@ -180,7 +179,7 @@ def assign_card(ctx: Context, card_id: str, member_id: str) -> None:
         client.add_card_member(card_id, member_id)
         print_success(f"Assigned {member_id} to card {card_id}")
     except Exception as e:
-        print_error(f"Failed to assign member: {e}")
+        exit_with_error(f"Failed to assign member: {e}")
 
 
 @card.command("unassign")
@@ -195,7 +194,7 @@ def unassign_card(ctx: Context, card_id: str, member_id: str) -> None:
         client.remove_card_member(card_id, member_id)
         print_success(f"Removed {member_id} from card {card_id}")
     except Exception as e:
-        print_error(f"Failed to unassign member: {e}")
+        exit_with_error(f"Failed to unassign member: {e}")
 
 
 @card.command("comment")
@@ -210,7 +209,7 @@ def add_comment(ctx: Context, card_id: str, text: str) -> None:
         client.add_card_comment(card_id, text)
         print_success("Comment added")
     except Exception as e:
-        print_error(f"Failed to add comment: {e}")
+        exit_with_error(f"Failed to add comment: {e}")
 
 
 @card.command("comments")
@@ -223,8 +222,7 @@ def list_comments(ctx: Context, card_id: str) -> None:
     try:
         comments = client.get_card_comments(card_id)
     except Exception as e:
-        print_error(f"Failed to get comments: {e}")
-        return
+        exit_with_error(f"Failed to get comments: {e}")
 
     data = [
         {
@@ -270,11 +268,10 @@ def update_card(
         kwargs["due"] = None if due.lower() == "null" else due
 
     if not kwargs:
-        print_error("No updates specified")
-        return
+        exit_with_error("No updates specified")
 
     try:
         client.update_card(card_id, **kwargs)
         print_success(f"Updated card: {card_id}")
     except Exception as e:
-        print_error(f"Failed to update card: {e}")
+        exit_with_error(f"Failed to update card: {e}")

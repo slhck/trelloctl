@@ -3,7 +3,7 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, print_error, print_success
+from trelloctl.output import format_output, exit_with_error, print_success
 
 
 @click.group("list")
@@ -33,8 +33,7 @@ def list_lists(ctx: Context, board: str, filter: str) -> None:
         board_id = ctx.resolver.resolve_board(board)
         lists = client.get_board_lists(board_id, filter=filter)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = [
         {
@@ -69,8 +68,7 @@ def show_list(ctx: Context, list_name: str, board: str) -> None:
         list_id = ctx.resolver.resolve_list(board, list_name)
         lst = client.get_list(list_id)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = {
         "id": lst["id"],
@@ -114,7 +112,7 @@ def create_list(ctx: Context, board: str, name: str, position: str) -> None:
         lst = client.create_list(board_id, name, pos=position)
         print_success(f"Created list: {lst['name']} ({lst['id']})")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @list_.command("archive")
@@ -135,7 +133,7 @@ def archive_list(ctx: Context, list_name: str, board: str, unarchive: bool) -> N
         action = "Unarchived" if unarchive else "Archived"
         print_success(f"{action} list: {list_name}")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @list_.command("cards")
@@ -153,8 +151,7 @@ def list_cards(ctx: Context, list_name: str, board: str) -> None:
         list_id = ctx.resolver.resolve_list(board, list_name)
         cards = client.get_list_cards(list_id)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = [
         {

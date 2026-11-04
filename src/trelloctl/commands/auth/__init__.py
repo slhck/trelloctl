@@ -5,7 +5,7 @@ import webbrowser
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import print_error, print_info, print_success
+from trelloctl.output import exit_with_error, print_info, print_success
 
 
 @click.group()
@@ -52,7 +52,7 @@ def login(ctx: Context, api_key: str | None, token: str | None) -> None:
         me = client.get_me()
         print_success(f"Authenticated as: {me['fullName']} (@{me['username']})")
     except Exception as e:
-        print_error(f"Authentication failed: {e}")
+        exit_with_error(f"Authentication failed: {e}")
 
 
 @auth.command("status")
@@ -60,15 +60,14 @@ def login(ctx: Context, api_key: str | None, token: str | None) -> None:
 def status(ctx: Context) -> None:
     """Check authentication status."""
     if not ctx.config.is_configured():
-        print_error("Not authenticated. Run 'trelloctl auth login' first.")
-        return
+        exit_with_error("Not authenticated. Run 'trelloctl auth login' first.")
 
     try:
         client = ctx.ensure_client()
         me = client.get_me()
         print_success(f"Authenticated as: {me['fullName']} (@{me['username']})")
     except Exception as e:
-        print_error(f"Authentication error: {e}")
+        exit_with_error(f"Authentication error: {e}")
 
 
 @auth.command("logout")

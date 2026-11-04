@@ -3,7 +3,7 @@
 import click
 
 from trelloctl.cli import Context, pass_context
-from trelloctl.output import format_output, print_error, print_success
+from trelloctl.output import format_output, exit_with_error, print_success
 
 
 @click.group()
@@ -26,7 +26,11 @@ def board() -> None:
 def list_boards(ctx: Context, filter: str) -> None:
     """List all accessible boards."""
     client = ctx.ensure_client()
-    boards = client.get_boards(filter=filter)
+
+    try:
+        boards = client.get_boards(filter=filter)
+    except Exception as e:
+        exit_with_error(f"Failed to list boards: {e}")
 
     data = [
         {
@@ -61,8 +65,7 @@ def show_board(ctx: Context, board: str) -> None:
         board_id = ctx.resolver.resolve_board(board)
         board_data = client.get_board(board_id)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = {
         "id": board_data["id"],
@@ -97,7 +100,7 @@ def create_board(ctx: Context, name: str, description: str) -> None:
         board_data = client.create_board(name, description)
         print_success(f"Created board: {board_data['name']} ({board_data['id']})")
     except Exception as e:
-        print_error(f"Failed to create board: {e}")
+        exit_with_error(f"Failed to create board: {e}")
 
 
 @board.command("close")
@@ -117,7 +120,7 @@ def close_board(ctx: Context, board: str, reopen: bool) -> None:
         action = "Reopened" if reopen else "Closed"
         print_success(f"{action} board: {board}")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @board.command("delete")
@@ -136,7 +139,7 @@ def delete_board(ctx: Context, board: str) -> None:
         client.delete_board(board_id)
         print_success(f"Deleted board: {board}")
     except Exception as e:
-        print_error(str(e))
+        exit_with_error(str(e))
 
 
 @board.command("labels")
@@ -153,8 +156,7 @@ def board_labels(ctx: Context, board: str) -> None:
         board_id = ctx.resolver.resolve_board(board)
         labels = client.get_board_labels(board_id)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = [
         {
@@ -188,8 +190,7 @@ def board_members(ctx: Context, board: str) -> None:
         board_id = ctx.resolver.resolve_board(board)
         members = client.get_board_members(board_id)
     except Exception as e:
-        print_error(str(e))
-        return
+        exit_with_error(str(e))
 
     data = [
         {

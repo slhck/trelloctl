@@ -7,7 +7,7 @@ import click
 from trelloctl.cli import Context, pass_context
 from trelloctl.output import (
     format_output,
-    print_error,
+    exit_with_error,
     print_success,
     print_warning,
 )
@@ -33,8 +33,7 @@ def list_checklists(ctx: Context, card_id: str) -> None:
     try:
         checklists = client.get_card_checklists(card_id)
     except Exception as e:
-        print_error(f"Failed to get checklists: {e}")
-        return
+        exit_with_error(f"Failed to get checklists: {e}")
 
     member_names = _resolve_item_members(client, card_id, checklists)
 
@@ -144,7 +143,7 @@ def create_checklist(ctx: Context, card_id: str, name: str) -> None:
         cl = client.create_checklist(card_id, name)
         print_success(f"Created checklist: {cl['name']} ({cl['id']})")
     except Exception as e:
-        print_error(f"Failed to create checklist: {e}")
+        exit_with_error(f"Failed to create checklist: {e}")
 
 
 @checklist.command("delete")
@@ -159,7 +158,7 @@ def delete_checklist(ctx: Context, checklist_id: str) -> None:
         client.delete_checklist(checklist_id)
         print_success(f"Deleted checklist: {checklist_id}")
     except Exception as e:
-        print_error(f"Failed to delete checklist: {e}")
+        exit_with_error(f"Failed to delete checklist: {e}")
 
 
 @checklist.command("add-item")
@@ -210,7 +209,7 @@ def add_item(
         )
         print_success(f"Added item: {item['name']} ({item['id']})")
     except Exception as e:
-        print_error(f"Failed to add item: {e}")
+        exit_with_error(f"Failed to add item: {e}")
 
 
 @checklist.command("assign")
@@ -234,7 +233,7 @@ def assign_item(ctx: Context, card_id: str, item_id: str, member: str) -> None:
         client.set_checklist_item_member(card_id, item_id, member_id)
         print_success(f"Assigned {member} to item {item_id}")
     except Exception as e:
-        print_error(f"Failed to assign member: {e}")
+        exit_with_error(f"Failed to assign member: {e}")
 
 
 @checklist.command("unassign")
@@ -253,7 +252,7 @@ def unassign_item(ctx: Context, card_id: str, item_id: str) -> None:
         client.set_checklist_item_member(card_id, item_id, "")
         print_success(f"Removed assigned member from item {item_id}")
     except Exception as e:
-        print_error(f"Failed to unassign member: {e}")
+        exit_with_error(f"Failed to unassign member: {e}")
 
 
 @checklist.command("set-due")
@@ -289,7 +288,7 @@ def set_item_due(
         else:
             print_success(f"Removed due date from item {item_id}")
     except Exception as e:
-        print_error(f"Failed to set due date: {e}")
+        exit_with_error(f"Failed to set due date: {e}")
 
 
 @checklist.command("edit-item")
@@ -309,7 +308,7 @@ def edit_item(ctx: Context, card_id: str, item_id: str, name: str) -> None:
         client.update_checklist_item(card_id, item_id, name=name)
         print_success(f"Updated item: {item_id}")
     except Exception as e:
-        print_error(f"Failed to update item: {e}")
+        exit_with_error(f"Failed to update item: {e}")
 
 
 @checklist.command("check")
@@ -331,7 +330,7 @@ def check_item(ctx: Context, card_id: str, item_id: str, uncheck: bool) -> None:
         action = "Unchecked" if uncheck else "Checked"
         print_success(f"{action} item: {item_id}")
     except Exception as e:
-        print_error(f"Failed to update item: {e}")
+        exit_with_error(f"Failed to update item: {e}")
 
 
 @checklist.command("delete-item")
@@ -346,4 +345,4 @@ def delete_item(ctx: Context, checklist_id: str, item_id: str) -> None:
         client.delete_checklist_item(checklist_id, item_id)
         print_success(f"Deleted item: {item_id}")
     except Exception as e:
-        print_error(f"Failed to delete item: {e}")
+        exit_with_error(f"Failed to delete item: {e}")

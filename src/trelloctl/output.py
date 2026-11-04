@@ -1,8 +1,9 @@
 """Output formatting utilities."""
 
 import json
+import sys
 from enum import Enum
-from typing import Any
+from typing import Any, NoReturn
 
 from rich.console import Console
 from rich.table import Table
@@ -87,6 +88,12 @@ def print_success(message: str) -> None:
 def print_error(message: str) -> None:
     """Print an error message to stderr."""
     error_console.print(f"[red]✗[/red] {message}")
+
+
+def exit_with_error(message: str) -> NoReturn:
+    """Print an error message to stderr and exit with status 1."""
+    print_error(message)
+    sys.exit(1)
 
 
 def print_warning(message: str) -> None:

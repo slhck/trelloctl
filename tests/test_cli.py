@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -438,6 +439,65 @@ class TestExitCodes:
 
 class TestOutputFormats:
     """Tests for different output formats."""
+
+    @pytest.mark.parametrize(
+        ("command", "method", "response"),
+        [
+            (
+                ["card", "show", "card1"],
+                "get_card",
+                {"id": "card1", "name": "Task"},
+            ),
+            (
+                ["board", "show", "507f1f77bcf86cd799439011"],
+                "get_board",
+                {"id": "507f1f77bcf86cd799439011", "name": "Dev", "url": "u"},
+            ),
+        ],
+    )
+    def test_show_json_is_object(
+        self, runner: CliRunner, command: list[str], method: str, response: dict
+    ) -> None:
+        """Commands that show one item must print a JSON object."""
+        mock_client = MagicMock()
+        getattr(mock_client, method).return_value = response
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(main, ["--format", "json", *command])
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout)["id"] == response["id"]
+
+    def test_warning_keeps_json_stdout_valid(self, runner: CliRunner) -> None:
+        """Warnings must go to stderr, so stdout stays parseable."""
+        mock_client = MagicMock()
+        mock_client.get_card_checklists.return_value = [
+            {
+                "id": "cl1",
+                "name": "Tasks",
+                "checkItems": [{"id": "item1", "name": "Do", "idMember": "member1"}],
+            }
+        ]
+        mock_client.get_card.side_effect = RuntimeError("HTTP 500")
+
+        mock_config = MagicMock()
+        mock_config.get_api_key.return_value = "test_key"
+        mock_config.get_token.return_value = "test_token"
+
+        with patch("trelloctl.cli.Config", return_value=mock_config):
+            with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
+                result = runner.invoke(
+                    main, ["--format", "json", "checklist", "list", "card1"]
+                )
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout)[0]["item_id"] == "item1"
+        assert "Could not resolve member names" in result.stderr
 
     def test_csv_output(
         self, runner: CliRunner, mock_boards: list[dict], mocker: Any

@@ -97,8 +97,8 @@ def exit_with_error(message: str) -> NoReturn:
 
 
 def print_warning(message: str) -> None:
-    """Print a warning message."""
-    console.print(f"[yellow]![/yellow] {message}")
+    """Print a warning message to stderr."""
+    error_console.print(f"[yellow]![/yellow] {message}")
 
 
 def print_info(message: str) -> None:
@@ -113,13 +113,18 @@ def format_output(
     title: str | None = None,
     template: str | None = None,
 ) -> None:
-    """Format and output data according to the specified format."""
+    """Format and output data according to the specified format.
+
+    In JSON format, a dict is printed as an object and a list as an array.
+    """
+    if format == OutputFormat.JSON:
+        output_json(data)
+        return
+
     if isinstance(data, dict):
         data = [data]
 
-    if format == OutputFormat.JSON:
-        output_json(data)
-    elif format == OutputFormat.CSV:
+    if format == OutputFormat.CSV:
         fields = [col[0] for col in columns] if columns else None
         output_csv(data, fields)
     elif format == OutputFormat.PLAIN:

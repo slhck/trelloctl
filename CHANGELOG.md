@@ -1,3 +1,17 @@
+## [0.6.0] - 2026-11-04
+
+### 🚀 Features
+
+- *(output)* [**breaking**] Print single items as JSON objects
+- *(cli)* Honor output format on write commands
+
+### 🐛 Bug Fixes
+
+- *(cli)* Exit non-zero when a command fails
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.6.0
 ## [0.5.2] - 2026-11-02
 
 ### 🐛 Bug Fixes

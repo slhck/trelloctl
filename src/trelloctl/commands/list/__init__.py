@@ -163,6 +163,7 @@ def list_cards(ctx: Context, list_name: str, board: str) -> None:
             "id": c["id"],
             "name": c["name"],
             "due": c.get("due", ""),
+            "due_complete": c.get("dueComplete", False),
             "labels": ", ".join(
                 lbl.get("name", lbl.get("color", "")) for lbl in c.get("labels", [])
             ),
@@ -173,7 +174,13 @@ def list_cards(ctx: Context, list_name: str, board: str) -> None:
     format_output(
         data,
         ctx.format,
-        columns=[("name", "Name"), ("due", "Due"), ("labels", "Labels"), ("id", "ID")],
+        columns=[
+            ("name", "Name"),
+            ("due", "Due"),
+            ("due_complete", "Complete"),
+            ("labels", "Labels"),
+            ("id", "ID"),
+        ],
         title="Cards",
         template="{name} ({id})",
     )

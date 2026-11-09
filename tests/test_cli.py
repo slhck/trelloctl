@@ -189,7 +189,9 @@ class TestListCommands:
         with patch("trelloctl.cli.Config", return_value=mock_config):
             with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
                 result = runner.invoke(
-                    main, ["list", "cards", "To Do", "--board", "Development"]
+                    main,
+                    ["list", "cards", "To Do", "--board", "Development"],
+                    env={"COLUMNS": "120"},
                 )
 
         assert result.exit_code == 0

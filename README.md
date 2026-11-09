@@ -113,6 +113,17 @@ trelloctl card create "To Do" --board Development --name "New task"
 # Move a card to another list
 trelloctl card move <card_id> Done --board Development
 
+# Mark a card as complete (or undo completion)
+trelloctl card complete <card_id>
+trelloctl card complete <card_id> --undo
+
+# Find incomplete cards across a board
+trelloctl board cards Development --incomplete
+
+# Add or remove an existing label
+trelloctl card label <card_id> <label_id>
+trelloctl card unlabel <card_id> <label_id>
+
 # Output as JSON
 trelloctl --format json board list
 
@@ -161,6 +172,10 @@ Authentication commands.
 
 Board management commands.
 
+- `board cards <board> [--filter open|closed|all] [--complete|--incomplete]` lists
+  cards across all lists. It defaults to open (unarchived) cards, including both
+  complete and incomplete cards. Use `--filter all` to include archived cards.
+
 | Command | Description |
 |---------|-------------|
 | `board list [--filter]` | List all accessible boards |
@@ -186,6 +201,16 @@ List management commands.
 ### `trelloctl card`
 
 Card management commands.
+
+- `card complete <card_id> [--undo]` marks a card as complete or incomplete.
+- `card label <card_id> <label_id>` adds an existing label.
+- `card unlabel <card_id> <label_id>` removes a label. Use `board labels <board>`
+  to find label IDs.
+
+Completion sets Trello's `dueComplete` flag, including on cards without a due
+date. It does not move or archive the card or complete its checklist items.
+Card details, write results, and card listings include `due_complete` as a JSON
+boolean. See the [Trello card API](https://developer.atlassian.com/cloud/trello/rest/api-group-cards/#api-cards-id-put).
 
 | Command | Description |
 |---------|-------------|

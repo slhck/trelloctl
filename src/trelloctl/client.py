@@ -49,7 +49,7 @@ class TrelloClient:
                 f"{method} {url}: {type(exc).__name__}", request=exc.request
             ) from None
 
-        if response.status_code == 204:
+        if response.status_code == 204 or not response.content:
             return None
         return response.json()
 
@@ -101,6 +101,10 @@ class TrelloClient:
     def get_board_labels(self, board_id: str) -> list[dict]:
         """Get all labels on a board."""
         return self.get(f"/boards/{board_id}/labels")
+
+    def get_board_cards(self, board_id: str, filter: str = "open") -> list[dict]:
+        """Get cards on a board, including archived cards when requested."""
+        return self.get(f"/boards/{board_id}/cards/{filter}")
 
     def get_board_members(self, board_id: str) -> list[dict]:
         """Get all members of a board."""
@@ -166,6 +170,18 @@ class TrelloClient:
     def archive_card(self, card_id: str, closed: bool = True) -> dict:
         """Archive or unarchive a card."""
         return self.put(f"/cards/{card_id}", params={"closed": str(closed).lower()})
+
+    def complete_card(self, card_id: str, complete: bool = True) -> dict:
+        """Set the card's completion flag without changing its list or archive state."""
+        return self.update_card(card_id, dueComplete=complete)
+
+    def add_card_label(self, card_id: str, label_id: str) -> list[str]:
+        """Add an existing label to a card."""
+        return self.post(f"/cards/{card_id}/idLabels", params={"value": label_id})
+
+    def remove_card_label(self, card_id: str, label_id: str) -> None:
+        """Remove a label from a card."""
+        self.delete(f"/cards/{card_id}/idLabels/{label_id}")
 
     def delete_card(self, card_id: str) -> None:
         """Delete a card."""

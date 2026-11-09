@@ -13,6 +13,7 @@ def _card_data(c: dict) -> dict:
         "name": c.get("name", ""),
         "description": c.get("desc", ""),
         "due": c.get("due", ""),
+        "due_complete": c.get("dueComplete", False),
         "url": c.get("url", ""),
         "list_id": c.get("idList", ""),
         "labels": ", ".join(
@@ -61,6 +62,7 @@ def show_card(ctx: Context, card: str) -> None:
             ("id", "ID"),
             ("description", "Description"),
             ("due", "Due"),
+            ("due_complete", "Complete"),
             ("labels", "Labels"),
             ("list_id", "List ID"),
             ("url", "URL"),
@@ -167,6 +169,64 @@ def archive_card(ctx: Context, card_id: str, unarchive: bool) -> None:
         output_result(_card_data(c), ctx.format, f"{action} card: {card_id}")
     except Exception as e:
         exit_with_error(f"Failed to archive card: {e}")
+
+
+@card.command("complete")
+@click.argument("card_id")
+@click.option("--undo", is_flag=True, help="Mark the card as incomplete")
+@pass_context
+def complete_card(ctx: Context, card_id: str, undo: bool) -> None:
+    """Mark a card as complete, or undo completion.
+
+    Sets Trello's dueComplete flag, including on cards without a due date.
+    Does not move or archive the card, or change checklist items.
+    """
+    client = ctx.ensure_client()
+
+    try:
+        c = client.complete_card(card_id, complete=not undo)
+        state = "incomplete" if undo else "complete"
+        output_result(_card_data(c), ctx.format, f"Marked card {card_id} as {state}")
+    except Exception as e:
+        exit_with_error(f"Failed to change card completion: {e}")
+
+
+@card.command("label")
+@click.argument("card_id")
+@click.argument("label_id")
+@pass_context
+def label_card(ctx: Context, card_id: str, label_id: str) -> None:
+    """Add an existing label (use 'board labels' to find label IDs)."""
+    client = ctx.ensure_client()
+
+    try:
+        client.add_card_label(card_id, label_id)
+        output_result(
+            {"id": card_id, "label_id": label_id},
+            ctx.format,
+            f"Added label {label_id} to card {card_id}",
+        )
+    except Exception as e:
+        exit_with_error(f"Failed to add label: {e}")
+
+
+@card.command("unlabel")
+@click.argument("card_id")
+@click.argument("label_id")
+@pass_context
+def unlabel_card(ctx: Context, card_id: str, label_id: str) -> None:
+    """Remove a label from a card."""
+    client = ctx.ensure_client()
+
+    try:
+        client.remove_card_label(card_id, label_id)
+        output_result(
+            {"id": card_id, "label_id": label_id},
+            ctx.format,
+            f"Removed label {label_id} from card {card_id}",
+        )
+    except Exception as e:
+        exit_with_error(f"Failed to remove label: {e}")
 
 
 @card.command("delete")

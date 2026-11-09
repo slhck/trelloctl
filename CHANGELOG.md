@@ -1,3 +1,12 @@
+## [0.7.0] - 2026-11-09
+
+### 🚀 Features
+
+- *(card)* Add completion and workflow commands
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.7.0
 ## [0.6.0] - 2026-11-04
 
 ### 🚀 Features

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from urllib.parse import urlsplit
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -11,6 +13,46 @@ if TYPE_CHECKING:
 def is_trello_id(ref: str) -> bool:
     """Return True if ref looks like a 24-character hex Trello ID."""
     return len(ref) == 24 and all(c in "0123456789abcdef" for c in ref.lower())
+
+
+def trello_url_ref(value: str, kind: str) -> str | None:
+    """Extract a board/card identifier from a Trello URL, rejecting other hosts."""
+    if "://" not in value:
+        return None
+    parsed = urlsplit(value)
+    parts = parsed.path.strip("/").split("/")
+    if (
+        parsed.scheme not in {"https", "http"}
+        or parsed.hostname not in {"trello.com", "www.trello.com"}
+        or parsed.username is not None
+        or len(parts) < 2
+        or parts[0] != kind
+        or not re.fullmatch(r"[A-Za-z0-9]+", parts[1])
+    ):
+        raise ValueError(f"Expected a Trello {'card' if kind == 'c' else 'board'} URL")
+    return parts[1]
+
+
+def _match_name(items: list[dict], ref: str, kind: str) -> str:
+    """Prefer exact ID/name matches, rejecting ambiguous partial names."""
+    if not ref.strip():
+        raise ValueError(f"{kind.title()} reference cannot be empty")
+    exact = [
+        item
+        for item in items
+        if item["id"] == ref or item.get("name", "").casefold() == ref.casefold()
+    ]
+    matches = exact or [
+        item for item in items if ref.casefold() in item.get("name", "").casefold()
+    ]
+    if len(matches) == 1:
+        return matches[0]["id"]
+    if matches:
+        details = ", ".join(
+            f"{item.get('name', '')} ({item['id']})" for item in matches
+        )
+        raise ValueError(f"Multiple {kind}s match '{ref}': {details}")
+    raise ValueError(f"{kind.title()} not found: '{ref}'")
 
 
 class Resolver:
@@ -54,6 +96,9 @@ class Resolver:
         Raises:
             ValueError: If board not found or multiple matches
         """
+        url_ref = trello_url_ref(board_ref, "b")
+        if url_ref:
+            return self.client.get_board(url_ref)["id"]
         # If it looks like an ID (24 hex chars), try it directly
         if is_trello_id(board_ref):
             return board_ref
@@ -153,6 +198,49 @@ class Resolver:
 
         raise ValueError(f"Card not found: '{card_ref}' in list '{list_ref}'")
 
+    def resolve_card_ref(
+        self, card_ref: str, board_ref: str | None = None, list_ref: str | None = None
+    ) -> str:
+        """Resolve URLs, IDs and shortlinks, or names scoped to a board/list.
+
+        Without a board, alphanumeric references pass through to Trello as they
+        did before name resolution was introduced. Scoped names never fall back
+        to passing an unmatched string to a write endpoint.
+        """
+        if list_ref and not board_ref:
+            raise ValueError("--list requires --board")
+        url_ref = trello_url_ref(card_ref, "c")
+        if url_ref:
+            return url_ref
+        if is_trello_id(card_ref):
+            return card_ref
+        if not board_ref:
+            if re.fullmatch(r"[A-Za-z0-9]+", card_ref):
+                return card_ref
+            raise ValueError("Card names require --board (and optionally --list)")
+        board_id = self.resolve_board(board_ref)
+        cards = self.client.get_board_cards(board_id, filter="all")
+        if list_ref:
+            list_id = self.resolve_list(board_id, list_ref)
+            cards = [card for card in cards if card.get("idList") == list_id]
+        # A shortlink should also work with an explicitly provided scope.
+        direct = [
+            card
+            for card in cards
+            if card.get("shortLink") == card_ref
+            or card.get("url", "").split("/")[4:5] == [card_ref]
+        ]
+        if len(direct) == 1:
+            return direct[0]["id"]
+        return _match_name(cards, card_ref, "card")
+
+    def resolve_label(self, board_ref: str, label_ref: str) -> str:
+        """Resolve a label ID or case-insensitive name on a board."""
+        if is_trello_id(label_ref):
+            return label_ref
+        board_id = self.resolve_board(board_ref)
+        return _match_name(self.client.get_board_labels(board_id), label_ref, "label")
+
     def resolve_member(self, board_ref: str, member_ref: str) -> str:
         """Resolve a member reference (ID, username, or full name) to an ID.
 
@@ -167,12 +255,20 @@ class Resolver:
         Raises:
             ValueError: If member not found or multiple matches
         """
+        if member_ref.casefold() == "me":
+            return self.client.get_me()["id"]
+        member_ref = member_ref.removeprefix("@")
+        if not member_ref.strip():
+            raise ValueError("Member reference cannot be empty")
         # If it looks like an ID, try it directly
         if is_trello_id(member_ref):
             return member_ref
 
         board_id = self.resolve_board(board_ref)
         members = self._get_members(board_id)
+        id_matches = [member for member in members if member["id"] == member_ref]
+        if id_matches:
+            return id_matches[0]["id"]
         member_ref_lower = member_ref.lower()
 
         # Try exact username match first

@@ -12,6 +12,7 @@ from trelloctl.output import (
     print_warning,
 )
 from trelloctl.resolver import is_trello_id
+from trelloctl.reference_options import card_reference_options
 
 
 def _item_data(item: dict) -> dict:
@@ -34,11 +35,12 @@ def checklist() -> None:
 
 @checklist.command("list")
 @click.argument("card_id")
+@card_reference_options
 @pass_context
 def list_checklists(ctx: Context, card_id: str) -> None:
     """List all checklists and items on a card.
 
-    CARD_ID must be a Trello card ID.
+    CARD_ID accepts an ID, shortlink, URL, or a name scoped with --board.
     """
     client = ctx.ensure_client()
 
@@ -143,11 +145,12 @@ def _member_id_from_checklist(
 @checklist.command("create")
 @click.argument("card_id")
 @click.option("--name", "-n", required=True, help="Checklist name")
+@card_reference_options
 @pass_context
 def create_checklist(ctx: Context, card_id: str, name: str) -> None:
     """Create a checklist on a card.
 
-    CARD_ID must be a Trello card ID.
+    CARD_ID accepts an ID, shortlink, URL, or a name scoped with --board.
     """
     client = ctx.ensure_client()
 
@@ -240,6 +243,7 @@ def add_item(
 @click.argument("card_id")
 @click.argument("item_id")
 @click.argument("member")
+@card_reference_options
 @pass_context
 def assign_item(ctx: Context, card_id: str, item_id: str, member: str) -> None:
     """Assign a member to a checklist item.
@@ -265,6 +269,7 @@ def assign_item(ctx: Context, card_id: str, item_id: str, member: str) -> None:
 @checklist.command("unassign")
 @click.argument("card_id")
 @click.argument("item_id")
+@card_reference_options
 @pass_context
 def unassign_item(ctx: Context, card_id: str, item_id: str) -> None:
     """Remove the assigned member from a checklist item.
@@ -294,6 +299,7 @@ def unassign_item(ctx: Context, card_id: str, item_id: str) -> None:
     type=int,
     help="Minutes before the due date to send a reminder (-1 to clear)",
 )
+@card_reference_options
 @pass_context
 def set_item_due(
     ctx: Context, card_id: str, item_id: str, due: str, reminder: int | None
@@ -327,6 +333,7 @@ def set_item_due(
 @click.argument("card_id")
 @click.argument("item_id")
 @click.option("--name", "name", required=True, help="New item text")
+@card_reference_options
 @pass_context
 def edit_item(ctx: Context, card_id: str, item_id: str, name: str) -> None:
     """Edit a checklist item's text.
@@ -347,6 +354,7 @@ def edit_item(ctx: Context, card_id: str, item_id: str, name: str) -> None:
 @click.argument("card_id")
 @click.argument("item_id")
 @click.option("--uncheck", is_flag=True, help="Mark as incomplete instead")
+@card_reference_options
 @pass_context
 def check_item(ctx: Context, card_id: str, item_id: str, uncheck: bool) -> None:
     """Mark a checklist item as complete (or incomplete with --uncheck).

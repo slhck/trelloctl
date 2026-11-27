@@ -73,14 +73,27 @@ def main(ctx: Context, format: str, profile: str) -> None:
 
 def _register_commands() -> None:
     """Register command groups with the main CLI."""
-    from trelloctl.commands import auth, board, card, checklist
+    from trelloctl.commands import (
+        attachment,
+        auth,
+        board,
+        card,
+        checklist,
+        field,
+        label,
+    )
     from trelloctl.commands import list as list_cmd
+    from trelloctl.commands.search import search
 
     main.add_command(auth.auth)
     main.add_command(board.board)
     main.add_command(card.card)
     main.add_command(checklist.checklist)
     main.add_command(list_cmd.list_)
+    main.add_command(search)
+    main.add_command(attachment.attachment)
+    main.add_command(label.label)
+    main.add_command(field.field)
 
 
 _register_commands()

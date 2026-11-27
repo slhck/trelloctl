@@ -4,6 +4,7 @@ import click
 
 from trelloctl.cli import Context, pass_context
 from trelloctl.commands.card import _card_data
+from trelloctl.filters import CardFilter, card_filter_options
 from trelloctl.output import exit_with_error, format_output, output_result
 
 
@@ -14,7 +15,7 @@ def _board_data(b: dict) -> dict:
         "name": b.get("name", ""),
         "description": b.get("desc", ""),
         "url": b.get("url", ""),
-        "closed": "Yes" if b.get("closed") else "No",
+        "closed": bool(b.get("closed", False)),
     }
 
 
@@ -49,7 +50,7 @@ def list_boards(ctx: Context, filter: str) -> None:
             "id": b["id"],
             "name": b["name"],
             "url": b["url"],
-            "closed": "Yes" if b.get("closed") else "No",
+            "closed": bool(b.get("closed", False)),
         }
         for b in boards
     ]
@@ -201,25 +202,39 @@ def board_labels(ctx: Context, board: str) -> None:
     default=None,
     help="Filter by completion state",
 )
+@card_filter_options
 @pass_context
-def board_cards(ctx: Context, board: str, filter: str, complete: bool | None) -> None:
+def board_cards(
+    ctx: Context,
+    board: str,
+    filter: str,
+    complete: bool | None,
+    member: str | None,
+    label: str | None,
+    overdue: bool,
+    due_before: str | None,
+) -> None:
     """List cards across all lists on a board.
 
     BOARD can be an ID or name (partial match supported).
     """
+    filters = CardFilter(
+        ctx,
+        member=member,
+        label=label,
+        overdue=overdue,
+        due_before=due_before,
+        complete=complete,
+    )
     client = ctx.ensure_client()
 
     try:
         board_id = ctx.resolver.resolve_board(board)
         cards = client.get_board_cards(board_id, filter=filter)
+        data = [_card_data(c) for c in cards if filters.matches(c, board_id)]
     except Exception as e:
         exit_with_error(f"Failed to list cards: {e}")
 
-    data = [
-        _card_data(c)
-        for c in cards
-        if complete is None or bool(c.get("dueComplete", False)) == complete
-    ]
     format_output(
         data,
         ctx.format,

@@ -3,24 +3,11 @@
 import click
 
 from trelloctl.cli import Context, pass_context
+from trelloctl.models import card_data as _card_data
 from trelloctl.output import exit_with_error, format_output, output_result
-
-
-def _card_data(c: dict) -> dict:
-    """Convert a Trello card to its output fields."""
-    return {
-        "id": c["id"],
-        "name": c.get("name", ""),
-        "description": c.get("desc", ""),
-        "due": c.get("due", ""),
-        "due_complete": c.get("dueComplete", False),
-        "url": c.get("url", ""),
-        "list_id": c.get("idList", ""),
-        "labels": ", ".join(
-            lbl.get("name", lbl.get("color", "")) for lbl in c.get("labels", [])
-        ),
-        "closed": "Yes" if c.get("closed") else "No",
-    }
+from trelloctl.reference_options import card_reference_options
+from trelloctl.resolver import is_trello_id
+from trelloctl.text_input import read_text
 
 
 def _comment_data(c: dict) -> dict:
@@ -41,11 +28,12 @@ def card() -> None:
 
 @card.command("show")
 @click.argument("card")
+@card_reference_options
 @pass_context
 def show_card(ctx: Context, card: str) -> None:
     """Show details of a card.
 
-    CARD must be an ID (use 'list cards' to find card IDs).
+    CARD accepts an ID, shortlink, URL, or a name scoped with --board.
     """
     client = ctx.ensure_client()
 
@@ -75,7 +63,13 @@ def show_card(ctx: Context, card: str) -> None:
 @click.argument("list_name")
 @click.option("--board", "-b", required=True, help="Board name or ID")
 @click.option("--name", "-n", required=True, help="Card name")
-@click.option("--description", "-d", default="", help="Card description")
+@click.option("--description", "-d", help="Card description")
+@click.option(
+    "--description-file",
+    type=click.Path(dir_okay=False),
+    help="Read description from a UTF-8 file, or - for stdin",
+)
+@click.option("--editor", is_flag=True, help="Compose description in $EDITOR")
 @click.option(
     "--position",
     "-p",
@@ -84,15 +78,19 @@ def show_card(ctx: Context, card: str) -> None:
     help="Position in list",
 )
 @click.option("--due", help="Due date (ISO format)")
-@click.option("--label", "-l", multiple=True, help="Label IDs to add")
-@click.option("--member", "-m", multiple=True, help="Member IDs to assign")
+@click.option("--label", "-l", multiple=True, help="Label IDs or names to add")
+@click.option(
+    "--member", "-m", multiple=True, help="Member IDs, usernames or names to assign"
+)
 @pass_context
 def create_card(
     ctx: Context,
     list_name: str,
     board: str,
     name: str,
-    description: str,
+    description: str | None,
+    description_file: str | None,
+    editor: bool,
     position: str,
     due: str | None,
     label: tuple[str, ...],
@@ -102,6 +100,7 @@ def create_card(
 
     LIST_NAME can be an ID or name (partial match supported).
     """
+    description = read_text(description, description_file, editor) or ""
     client = ctx.ensure_client()
 
     try:
@@ -112,8 +111,8 @@ def create_card(
             desc=description,
             pos=position,
             due=due,
-            labels=list(label) if label else None,
-            members=list(member) if member else None,
+            labels=[ctx.resolver.resolve_label(board, ref) for ref in label] or None,
+            members=[ctx.resolver.resolve_member(board, ref) for ref in member] or None,
         )
         output_result(
             _card_data(c), ctx.format, f"Created card: {c['name']} ({c['id']})"
@@ -135,6 +134,7 @@ def create_card(
     default="bottom",
     help="Position in new list",
 )
+@card_reference_options(board_option=False)
 @pass_context
 def move_card(
     ctx: Context, card_id: str, target_list: str, board: str, position: str
@@ -158,6 +158,7 @@ def move_card(
 @card.command("archive")
 @click.argument("card_id")
 @click.option("--unarchive", is_flag=True, help="Unarchive instead of archive")
+@card_reference_options
 @pass_context
 def archive_card(ctx: Context, card_id: str, unarchive: bool) -> None:
     """Archive a card."""
@@ -174,6 +175,7 @@ def archive_card(ctx: Context, card_id: str, unarchive: bool) -> None:
 @card.command("complete")
 @click.argument("card_id")
 @click.option("--undo", is_flag=True, help="Mark the card as incomplete")
+@card_reference_options
 @pass_context
 def complete_card(ctx: Context, card_id: str, undo: bool) -> None:
     """Mark a card as complete, or undo completion.
@@ -194,12 +196,16 @@ def complete_card(ctx: Context, card_id: str, undo: bool) -> None:
 @card.command("label")
 @click.argument("card_id")
 @click.argument("label_id")
+@card_reference_options
 @pass_context
 def label_card(ctx: Context, card_id: str, label_id: str) -> None:
-    """Add an existing label (use 'board labels' to find label IDs)."""
+    """Add an existing label by ID or name."""
     client = ctx.ensure_client()
 
     try:
+        if not is_trello_id(label_id):
+            board_id = client.get_card(card_id)["idBoard"]
+            label_id = ctx.resolver.resolve_label(board_id, label_id)
         client.add_card_label(card_id, label_id)
         output_result(
             {"id": card_id, "label_id": label_id},
@@ -213,12 +219,16 @@ def label_card(ctx: Context, card_id: str, label_id: str) -> None:
 @card.command("unlabel")
 @click.argument("card_id")
 @click.argument("label_id")
+@card_reference_options
 @pass_context
 def unlabel_card(ctx: Context, card_id: str, label_id: str) -> None:
     """Remove a label from a card."""
     client = ctx.ensure_client()
 
     try:
+        if not is_trello_id(label_id):
+            board_id = client.get_card(card_id)["idBoard"]
+            label_id = ctx.resolver.resolve_label(board_id, label_id)
         client.remove_card_label(card_id, label_id)
         output_result(
             {"id": card_id, "label_id": label_id},
@@ -232,6 +242,7 @@ def unlabel_card(ctx: Context, card_id: str, label_id: str) -> None:
 @card.command("delete")
 @click.argument("card_id")
 @click.confirmation_option(prompt="Are you sure you want to delete this card?")
+@card_reference_options
 @pass_context
 def delete_card(ctx: Context, card_id: str) -> None:
     """Delete a card (permanently)."""
@@ -249,12 +260,16 @@ def delete_card(ctx: Context, card_id: str) -> None:
 @card.command("assign")
 @click.argument("card_id")
 @click.argument("member_id")
+@card_reference_options
 @pass_context
 def assign_card(ctx: Context, card_id: str, member_id: str) -> None:
     """Assign a member to a card."""
     client = ctx.ensure_client()
 
     try:
+        if not is_trello_id(member_id):
+            board_id = client.get_card(card_id)["idBoard"]
+            member_id = ctx.resolver.resolve_member(board_id, member_id)
         client.add_card_member(card_id, member_id)
         output_result(
             {"id": card_id, "member_id": member_id},
@@ -268,12 +283,16 @@ def assign_card(ctx: Context, card_id: str, member_id: str) -> None:
 @card.command("unassign")
 @click.argument("card_id")
 @click.argument("member_id")
+@card_reference_options
 @pass_context
 def unassign_card(ctx: Context, card_id: str, member_id: str) -> None:
     """Remove a member from a card."""
     client = ctx.ensure_client()
 
     try:
+        if not is_trello_id(member_id):
+            board_id = client.get_card(card_id)["idBoard"]
+            member_id = ctx.resolver.resolve_member(board_id, member_id)
         client.remove_card_member(card_id, member_id)
         output_result(
             {"id": card_id, "member_id": member_id},
@@ -286,10 +305,20 @@ def unassign_card(ctx: Context, card_id: str, member_id: str) -> None:
 
 @card.command("comment")
 @click.argument("card_id")
-@click.argument("text")
+@click.argument("text", required=False)
+@click.option(
+    "--text-file",
+    type=click.Path(dir_okay=False),
+    help="Read comment from a UTF-8 file, or - for stdin",
+)
+@click.option("--editor", is_flag=True, help="Compose comment in $EDITOR")
+@card_reference_options
 @pass_context
-def add_comment(ctx: Context, card_id: str, text: str) -> None:
+def add_comment(
+    ctx: Context, card_id: str, text: str | None, text_file: str | None, editor: bool
+) -> None:
     """Add a comment to a card."""
+    text = read_text(text, text_file, editor, required=True) or ""
     client = ctx.ensure_client()
 
     try:
@@ -301,6 +330,7 @@ def add_comment(ctx: Context, card_id: str, text: str) -> None:
 
 @card.command("comments")
 @click.argument("card_id")
+@card_reference_options
 @pass_context
 def list_comments(ctx: Context, card_id: str) -> None:
     """List comments on a card."""
@@ -324,18 +354,38 @@ def list_comments(ctx: Context, card_id: str) -> None:
 @click.argument("card_id")
 @click.option("--name", "-n", help="New card name")
 @click.option("--description", "-d", help="New description")
+@click.option(
+    "--description-file",
+    type=click.Path(dir_okay=False),
+    help="Read description from a UTF-8 file, or - for stdin",
+)
+@click.option("--editor", is_flag=True, help="Edit current description in $EDITOR")
 @click.option("--due", help="New due date (ISO format, or 'null' to remove)")
+@card_reference_options
 @pass_context
 def update_card(
     ctx: Context,
     card_id: str,
     name: str | None,
     description: str | None,
+    description_file: str | None,
+    editor: bool,
     due: str | None,
 ) -> None:
     """Update a card's properties."""
     client = ctx.ensure_client()
 
+    if sum((description is not None, description_file is not None, editor)) > 1:
+        raise click.UsageError(
+            "Use only one description argument, file option, or --editor"
+        )
+    initial = ""
+    if editor:
+        try:
+            initial = client.get_card(card_id).get("desc", "")
+        except Exception as exc:
+            exit_with_error(f"Failed to get current description: {exc}")
+    description = read_text(description, description_file, editor, initial=initial)
     kwargs: dict[str, str | None] = {}
     if name:
         kwargs["name"] = name

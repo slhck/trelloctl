@@ -63,7 +63,7 @@ def test_complete_card(api, undo, output_format):
     if output_format == "json":
         data = json.loads(result.stdout)
         assert data["due_complete"] is not undo
-        assert data["closed"] == "No"
+        assert data["closed"] is False
     elif output_format == "plain":
         assert result.stdout == "card1\n"
     elif output_format == "csv":
@@ -77,18 +77,23 @@ def test_complete_card(api, undo, output_format):
 def test_card_labels(api, command, method):
     """Labels use the dedicated endpoints without replacing other labels."""
     requests, response = api
-    response["data"] = ["label1"] if command == "label" else None
+    response["data"] = ["507f1f77bcf86cd799439099"] if command == "label" else None
     result = CliRunner().invoke(
-        main, ["--format", "json", "card", command, "card1", "label1"]
+        main, ["--format", "json", "card", command, "card1", "507f1f77bcf86cd799439099"]
     )
     assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout) == {"id": "card1", "label_id": "label1"}
+    assert json.loads(result.stdout) == {
+        "id": "card1",
+        "label_id": "507f1f77bcf86cd799439099",
+    }
     assert requests[0].method == method
     if command == "label":
         assert requests[0].url.path == "/1/cards/card1/idLabels"
-        assert requests[0].url.params["value"] == "label1"
+        assert requests[0].url.params["value"] == "507f1f77bcf86cd799439099"
     else:
-        assert requests[0].url.path == "/1/cards/card1/idLabels/label1"
+        assert (
+            requests[0].url.path == "/1/cards/card1/idLabels/507f1f77bcf86cd799439099"
+        )
 
 
 @pytest.mark.parametrize(
@@ -163,8 +168,8 @@ def test_completion_visible(api, command, complete):
     "command",
     [
         ["card", "complete", "card1"],
-        ["card", "label", "card1", "label1"],
-        ["card", "unlabel", "card1", "label1"],
+        ["card", "label", "card1", "507f1f77bcf86cd799439099"],
+        ["card", "unlabel", "card1", "507f1f77bcf86cd799439099"],
         ["board", "cards", "507f1f77bcf86cd799439011"],
     ],
 )

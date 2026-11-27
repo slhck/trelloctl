@@ -3,6 +3,7 @@
 import click
 
 from trelloctl.cli import Context, pass_context
+from trelloctl.models import card_data
 from trelloctl.output import exit_with_error, format_output, output_result
 
 
@@ -11,7 +12,7 @@ def _list_data(lst: dict) -> dict:
     return {
         "id": lst["id"],
         "name": lst.get("name", ""),
-        "closed": "Yes" if lst.get("closed") else "No",
+        "closed": bool(lst.get("closed", False)),
         "board_id": lst.get("idBoard", ""),
     }
 
@@ -49,7 +50,7 @@ def list_lists(ctx: Context, board: str, filter: str) -> None:
         {
             "id": lst["id"],
             "name": lst["name"],
-            "closed": "Yes" if lst.get("closed") else "No",
+            "closed": bool(lst.get("closed", False)),
         }
         for lst in lists
     ]
@@ -158,18 +159,7 @@ def list_cards(ctx: Context, list_name: str, board: str) -> None:
     except Exception as e:
         exit_with_error(str(e))
 
-    data = [
-        {
-            "id": c["id"],
-            "name": c["name"],
-            "due": c.get("due", ""),
-            "due_complete": c.get("dueComplete", False),
-            "labels": ", ".join(
-                lbl.get("name", lbl.get("color", "")) for lbl in c.get("labels", [])
-            ),
-        }
-        for c in cards
-    ]
+    data = [card_data(c) for c in cards]
 
     format_output(
         data,

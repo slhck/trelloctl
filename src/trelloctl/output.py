@@ -1,5 +1,6 @@
 """Output formatting utilities."""
 
+import csv
 import json
 import sys
 from enum import Enum
@@ -34,10 +35,38 @@ def output_csv(data: list[dict], fields: list[str] | None = None) -> None:
     if fields is None:
         fields = list(data[0].keys())
 
-    print(",".join(fields))
+    writer = csv.writer(sys.stdout, lineterminator="\n")
+    writer.writerow(fields)
     for row in data:
-        values = [str(row.get(f, "")).replace(",", ";") for f in fields]
-        print(",".join(values))
+        writer.writerow([_csv_value(row.get(field)) for field in fields])
+
+
+def _csv_value(value: Any) -> Any:
+    """Encode nested values as JSON inside properly quoted CSV cells."""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return value
+
+
+def _display_value(value: Any) -> str:
+    """Render typed values compactly for human-readable tables."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, list):
+        return ", ".join(
+            str(
+                item.get("name")
+                or item.get("value", {}).get("text")
+                or item.get("color")
+                or item.get("id", "")
+            )
+            if isinstance(item, dict)
+            else str(item)
+            for item in value
+        )
+    return str(value)
 
 
 def output_table(
@@ -64,7 +93,7 @@ def output_table(
         table.add_column(header)
 
     for row in data:
-        table.add_row(*[str(row.get(key, "")) for key, _ in columns])
+        table.add_row(*[_display_value(row.get(key)) for key, _ in columns])
 
     console.print(table)
 

@@ -23,7 +23,7 @@ class TestCLI:
     """Tests for the main CLI."""
 
     @pytest.mark.parametrize(
-        "command", [["card", "show", "missing-card"], ["auth", "status"]]
+        "command", [["card", "show", "507f1f77bcf86cd799439099"], ["auth", "status"]]
     )
     def test_failed_request_hides_credentials(
         self, runner: CliRunner, mocker: Any, command: list[str]
@@ -275,7 +275,7 @@ class TestCardCommands:
         mock_client.get_boards.return_value = mock_boards
         mock_client.get_board_lists.return_value = mock_lists
         mock_client.move_card.return_value = {
-            "id": "card12345678901234567890",
+            "id": "60d5ec49f1a4a23456789abc",
             "idList": "list34567890123456789012",
         }
 
@@ -290,7 +290,7 @@ class TestCardCommands:
                     [
                         "card",
                         "move",
-                        "card12345678901234567890",
+                        "60d5ec49f1a4a23456789abc",
                         "Done",
                         "--board",
                         "Development",
@@ -304,7 +304,7 @@ class TestCardCommands:
         """Test card archive command."""
         mock_client = MagicMock()
         mock_client.archive_card.return_value = {
-            "id": "card12345678901234567890",
+            "id": "60d5ec49f1a4a23456789abc",
             "closed": True,
         }
 
@@ -315,7 +315,7 @@ class TestCardCommands:
         with patch("trelloctl.cli.Config", return_value=mock_config):
             with patch("trelloctl.cli.TrelloClient", return_value=mock_client):
                 result = runner.invoke(
-                    main, ["card", "archive", "card12345678901234567890"]
+                    main, ["card", "archive", "60d5ec49f1a4a23456789abc"]
                 )
 
         assert result.exit_code == 0
@@ -344,7 +344,7 @@ class TestChecklistCommands:
                     [
                         "checklist",
                         "edit-item",
-                        "card12345678901234567890",
+                        "60d5ec49f1a4a23456789abc",
                         "item123",
                         "--name",
                         "Renamed item",
@@ -354,7 +354,7 @@ class TestChecklistCommands:
         assert result.exit_code == 0
         assert "Updated item" in result.output
         mock_client.update_checklist_item.assert_called_once_with(
-            "card12345678901234567890", "item123", name="Renamed item"
+            "60d5ec49f1a4a23456789abc", "item123", name="Renamed item"
         )
 
 
@@ -415,7 +415,7 @@ class TestWriteOutput:
                 {"id": "card1", "url": CARD["url"]},
             ),
             (
-                ["card", "move", "card1", LIST_ID, "-b", BOARD_ID],
+                ["card", "move", "60d5ec49f1a4a23456789abc", LIST_ID, "-b", BOARD_ID],
                 "move_card",
                 CARD,
                 {"id": "card1"},
@@ -434,16 +434,16 @@ class TestWriteOutput:
                 {"id": "card1", "deleted": True},
             ),
             (
-                ["card", "assign", "card1", "member1"],
+                ["card", "assign", "card1", "507f1f77bcf86cd799439098"],
                 "add_card_member",
                 [],
-                {"id": "card1", "member_id": "member1"},
+                {"id": "card1", "member_id": "507f1f77bcf86cd799439098"},
             ),
             (
-                ["card", "unassign", "card1", "member1"],
+                ["card", "unassign", "card1", "507f1f77bcf86cd799439098"],
                 "remove_card_member",
                 [],
-                {"id": "card1", "member_id": "member1"},
+                {"id": "card1", "member_id": "507f1f77bcf86cd799439098"},
             ),
             (
                 ["card", "comment", "card1", "Text"],
@@ -595,7 +595,7 @@ class TestWriteOutput:
         """Auth status must honor the output format."""
         mock_client = MagicMock()
         mock_client.get_me.return_value = {
-            "id": "member1",
+            "id": "507f1f77bcf86cd799439098",
             "username": "jo",
             "fullName": "Jo",
         }
@@ -609,7 +609,7 @@ class TestWriteOutput:
                 result = runner.invoke(main, ["--format", "json", "auth", "status"])
 
         assert json.loads(result.stdout) == {
-            "id": "member1",
+            "id": "507f1f77bcf86cd799439098",
             "username": "jo",
             "full_name": "Jo",
         }
@@ -709,7 +709,13 @@ class TestOutputFormats:
             {
                 "id": "cl1",
                 "name": "Tasks",
-                "checkItems": [{"id": "item1", "name": "Do", "idMember": "member1"}],
+                "checkItems": [
+                    {
+                        "id": "item1",
+                        "name": "Do",
+                        "idMember": "507f1f77bcf86cd799439098",
+                    }
+                ],
             }
         ]
         mock_client.get_card.side_effect = RuntimeError("HTTP 500")

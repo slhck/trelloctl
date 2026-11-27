@@ -1,6 +1,10 @@
 """Trello API client."""
 
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote, urlsplit
 
 import httpx
 
@@ -25,6 +29,7 @@ class TrelloClient:
         path: str,
         params: dict | None = None,
         json: dict | None = None,
+        files: dict | None = None,
     ) -> Any:
         """Make an authenticated request to Trello API."""
         url = f"{BASE_URL}{path}"
@@ -33,7 +38,10 @@ class TrelloClient:
             all_params.update(params)
 
         try:
-            response = self._client.request(method, url, params=all_params, json=json)
+            options: dict[str, Any] = {"params": all_params, "json": json}
+            if files is not None:
+                options["files"] = files
+            response = self._client.request(method, url, **options)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             # HTTPX's default message includes the URL with authentication params.
@@ -100,7 +108,7 @@ class TrelloClient:
 
     def get_board_labels(self, board_id: str) -> list[dict]:
         """Get all labels on a board."""
-        return self.get(f"/boards/{board_id}/labels")
+        return self.get(f"/boards/{board_id}/labels", params={"limit": 1000})
 
     def get_board_cards(self, board_id: str, filter: str = "open") -> list[dict]:
         """Get cards on a board, including archived cards when requested."""
@@ -316,3 +324,138 @@ class TrelloClient:
     def get_me(self) -> dict:
         """Get the authenticated user."""
         return self.get("/members/me")
+
+    # Attachments
+    def get_attachments(self, card_id: str) -> list[dict]:
+        """List a card's uploaded files and linked URLs."""
+        return self.get(f"/cards/{card_id}/attachments")
+
+    def get_attachment(self, card_id: str, attachment_id: str) -> dict:
+        """Get attachment metadata."""
+        return self.get(f"/cards/{card_id}/attachments/{attachment_id}")
+
+    def add_attachment(
+        self,
+        card_id: str,
+        *,
+        file: Path | None = None,
+        url: str | None = None,
+        name: str | None = None,
+    ) -> dict:
+        """Upload a local file or attach a URL."""
+        if (file is None) == (url is None):
+            raise ValueError("Provide exactly one of file or URL")
+        params = {"name": name} if name is not None else {}
+        if url is not None:
+            parts = urlsplit(url)
+            if parts.scheme not in ("http", "https") or not parts.hostname:
+                raise ValueError("Attachment URL must use HTTP or HTTPS")
+            params["url"] = url
+            return self.post(f"/cards/{card_id}/attachments", params=params)
+        assert file is not None
+        with file.open("rb") as source:
+            return self._request(
+                "POST",
+                f"/cards/{card_id}/attachments",
+                params=params,
+                files={"file": (file.name, source)},
+            )
+
+    def delete_attachment(self, card_id: str, attachment_id: str) -> None:
+        """Remove an attachment from a card."""
+        self.delete(f"/cards/{card_id}/attachments/{attachment_id}")
+
+    def download_attachment(
+        self,
+        card_id: str,
+        attachment: dict,
+        destination: Path,
+        *,
+        force: bool = False,
+    ) -> None:
+        """Stream to a temporary file, publishing only a complete download.
+
+        Uploaded files use Trello's authenticated download route. Credentials
+        are never sent to external linked attachments or redirect destinations.
+        """
+        if destination.exists() and not force:
+            raise ValueError(f"File already exists: {destination} (use --force)")
+        headers = {}
+        if attachment.get("isUpload"):
+            filename = quote(
+                str(attachment.get("fileName") or attachment["name"]), safe=""
+            )
+            url = (
+                f"{BASE_URL}/cards/{quote(card_id, safe='')}/attachments/"
+                f"{quote(attachment['id'], safe='')}/download/{filename}"
+            )
+            headers["Authorization"] = (
+                f'OAuth oauth_consumer_key="{quote(self.api_key, safe="")}", '
+                f'oauth_token="{quote(self.token, safe="")}"'
+            )
+        else:
+            url = attachment["url"]
+            parts = urlsplit(url)
+            if (
+                parts.scheme not in ("http", "https")
+                or not parts.hostname
+                or parts.username
+            ):
+                raise ValueError(
+                    "Attachment URL must use HTTP or HTTPS without credentials"
+                )
+        temporary: Path | None = None
+        try:
+            with self._client.stream(
+                "GET", url, headers=headers, follow_redirects=True
+            ) as response:
+                response.raise_for_status()
+                with tempfile.NamedTemporaryFile(
+                    dir=destination.parent, delete=False
+                ) as output:
+                    temporary = Path(output.name)
+                    for chunk in response.iter_bytes():
+                        output.write(chunk)
+            if force:
+                os.replace(temporary, destination)
+            else:
+                os.link(temporary, destination)
+        except httpx.HTTPError as exc:
+            raise ValueError(
+                f"Attachment download failed: {type(exc).__name__}"
+            ) from None
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
+    # Labels
+    def get_label(self, label_id: str) -> dict:
+        """Get label details."""
+        return self.get(f"/labels/{label_id}")
+
+    def create_label(self, board_id: str, name: str, color: str | None) -> dict:
+        """Create a board label, optionally without a color."""
+        return self.post(
+            "/labels", json={"idBoard": board_id, "name": name, "color": color}
+        )
+
+    def update_label(self, label_id: str, **changes: Any) -> dict:
+        """Change a label's name or color."""
+        return self.put(f"/labels/{label_id}", json=changes)
+
+    def delete_label(self, label_id: str) -> None:
+        """Delete a board label."""
+        self.delete(f"/labels/{label_id}")
+
+    # Custom fields
+    def get_custom_fields(self, board_id: str) -> list[dict]:
+        """Get board field definitions including dropdown options."""
+        return self.get(f"/boards/{board_id}/customFields")
+
+    def get_custom_field_items(self, card_id: str) -> list[dict]:
+        """Get the custom field values set on a card."""
+        return self.get(f"/cards/{card_id}/customFieldItems")
+
+    def set_custom_field(self, card_id: str, field_id: str, payload: dict) -> dict:
+        """Set or clear a custom field using its typed API payload."""
+        return self.put(f"/cards/{card_id}/customField/{field_id}/item", json=payload)

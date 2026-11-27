@@ -1,3 +1,12 @@
+## [0.8.0] - 2026-11-27
+
+### 🚀 Features
+
+- *(cli)* [**breaking**] Expand card management workflows
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 0.8.0
 ## [0.7.0] - 2026-11-09
 
 ### 🚀 Features
